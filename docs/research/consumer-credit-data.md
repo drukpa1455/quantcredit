@@ -1,7 +1,7 @@
 # Ford 2024-A loan-state and target decision
 
 - Decision date: 2026-08-23
-- Implementation revision: `aa537c0`
+- Implementation revision: `d620625`
 - Dataset: Ford Credit Auto Owner Trust 2024-A, 2025 reports
 - ABS schema: 3.1
 
@@ -28,7 +28,7 @@ Reject two candidate targets:
 
 ## Reproduction
 
-The audit was run from revision `aa537c0` in an isolated worktree against the
+The audit was run from revision `d620625` in an isolated worktree against the
 existing ignored cache:
 
 ```console

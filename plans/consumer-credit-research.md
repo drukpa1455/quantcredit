@@ -786,7 +786,7 @@ label exists.
 or rejects default, prepayment, and loss targets before modeling can hide a
 semantic error.
 
-**Status:** Complete at implementation revision `aa537c0`.
+**Status:** Complete at implementation revision `d620625`.
 
 **Done when:**
 
