@@ -1,0 +1,32 @@
+[project]
+name = "quantcredit"
+version = "0.1.0"
+description = "Executable consumer-credit research from public records to graph models"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+notebook = ["ipykernel>=7.2,<8"]
+lint = ["mypy>=1.19,<2", "ruff>=0.15,<0.16"]
+
+[tool.mypy]
+files = ["src/quantcredit"]
+strict = true
+
+[tool.ruff]
+indent-width = 2
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.format]
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "RUF"]

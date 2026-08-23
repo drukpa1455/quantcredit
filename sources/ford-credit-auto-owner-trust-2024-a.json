@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "dataset": "ford-credit-auto-owner-trust-2024-a-2025",
+  "issuer": "Ford Credit Auto Owner Trust 2024-A",
+  "cik": "0002014176",
+  "abs_schema_version": "3.1",
+  "filings": [
+    {
+      "report_period": "2025-01-31",
+      "accession": "0002014176-25-000006",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000006/0002014176-25-000006-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-02-28",
+      "accession": "0002014176-25-000010",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000010/0002014176-25-000010-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-03-31",
+      "accession": "0002014176-25-000016",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000016/0002014176-25-000016-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-04-30",
+      "accession": "0002014176-25-000020",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000020/0002014176-25-000020-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-05-31",
+      "accession": "0002014176-25-000024",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000024/0002014176-25-000024-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-06-30",
+      "accession": "0002014176-25-000028",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000028/0002014176-25-000028-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-07-31",
+      "accession": "0002014176-25-000033",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000033/0002014176-25-000033-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-08-31",
+      "accession": "0002014176-25-000037",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000037/0002014176-25-000037-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-09-30",
+      "accession": "0002014176-25-000042",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000042/0002014176-25-000042-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-10-31",
+      "accession": "0002014176-25-000047",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000047/0002014176-25-000047-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-11-30",
+      "accession": "0002014176-25-000051",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417625000051/0002014176-25-000051-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    },
+    {
+      "report_period": "2025-12-31",
+      "accession": "0002014176-26-000002",
+      "index_url": "https://www.sec.gov/Archives/edgar/data/2014176/000201417626000002/0002014176-26-000002-index.htm",
+      "ex102_url": null,
+      "bytes": null,
+      "sha256": null
+    }
+  ]
+}
