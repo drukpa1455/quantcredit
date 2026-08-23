@@ -156,6 +156,9 @@ class AcquisitionTests(unittest.TestCase):
   def test_acquisition_records_pin_and_then_uses_verified_cache(self) -> None:
     raw = json.loads(MANIFEST.read_text())
     raw["filings"] = raw["filings"][:1]
+    raw["filings"][0]["ex102_url"] = None
+    raw["filings"][0]["bytes"] = None
+    raw["filings"][0]["sha256"] = None
     manifest_path = self._write(raw)
     filing = load_manifest(manifest_path).filings[0]
     data = b"<asset/>"
