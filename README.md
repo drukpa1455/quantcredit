@@ -50,13 +50,13 @@ from quantcredit.fetch import fetch
 receipt = fetch(
   "https://data.example/loans.csv",
   Path("data/loans.csv"),
-  timeout_seconds=30,
-  max_bytes=100_000_000,
 )
 ```
 
-The receipt supplies the exact byte count and SHA-256 needed to verify later
-cache reuse. analysis rules still decide whether personal helpers are allowed.
+The defaults allow 30 seconds and 500 MB. Override either bound when the source
+requires it. The receipt supplies the exact byte count and SHA-256 needed to
+verify later cache reuse. analysis rules still decide whether personal helpers
+are allowed.
 
 ## Plan
 
