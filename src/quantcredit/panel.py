@@ -34,6 +34,15 @@ IMMUTABLE_FIELDS = (
   "originalInterestRateTypeCode",
   "originalFirstPaymentDate",
 )
+DECIMAL_FIELDS = frozenset(
+  {
+    "originalLoanAmount",
+    "originalInterestRatePercentage",
+    "chargedoffPrincipalAmount",
+    "recoveredAmount",
+  }
+)
+INTEGER_FIELDS = frozenset({"originalLoanTerm", "currentDelinquencyStatus"})
 
 
 class ZeroBalanceCode(StrEnum):
@@ -83,9 +92,21 @@ class LoanSnapshot:
     if value is None:
       return None
     try:
-      return Decimal(value)
+      number = Decimal(value)
     except InvalidOperation as error:
       raise ValueError(f"{self.accession}: invalid decimal element {name}") from error
+    if not number.is_finite():
+      raise ValueError(f"{self.accession}: non-finite decimal element {name}")
+    return number
+
+  def integer(self, name: str) -> int | None:
+    value = self._one(name)
+    if value is None:
+      return None
+    try:
+      return int(value)
+    except ValueError as error:
+      raise ValueError(f"{self.accession}: invalid integer element {name}") from error
 
   @property
   def zero_balance_codes(self) -> tuple[ZeroBalanceCode, ...]:
@@ -96,14 +117,9 @@ class LoanSnapshot:
 
   @property
   def current_delinquency_status(self) -> int | None:
-    value = self._one("currentDelinquencyStatus")
-    if value is None:
+    status = self.integer("currentDelinquencyStatus")
+    if status is None:
       return None
-    try:
-      status = int(value)
-    except ValueError as error:
-      message = f"{self.accession}: invalid integer element currentDelinquencyStatus"
-      raise ValueError(message) from error
     if status < 0:
       raise ValueError(f"{self.accession}: negative element currentDelinquencyStatus")
     return status
@@ -170,7 +186,7 @@ def validate_snapshots(snapshots: Iterable[LoanSnapshot]) -> PanelSummary:
   keys: set[SnapshotKey] = set()
   loans: set[AssetKey] = set()
   periods: set[date] = set()
-  immutable: dict[tuple[AssetKey, str], str] = {}
+  immutable: dict[tuple[AssetKey, str], str | int | Decimal] = {}
   last_period: date | None = None
   count = 0
 
@@ -192,8 +208,9 @@ def validate_snapshots(snapshots: Iterable[LoanSnapshot]) -> PanelSummary:
       if len(values) != 1:
         raise ValueError(f"{snapshot.accession}: repeated immutable element {name}")
       key = (snapshot.key.asset, name)
-      previous = immutable.setdefault(key, values[0])
-      if previous != values[0]:
+      value = _immutable_value(snapshot, name, values[0])
+      previous = immutable.setdefault(key, value)
+      if previous != value:
         raise ValueError(f"{snapshot.accession}: contradictory immutable element {name}")
 
   if count == 0:
@@ -234,6 +251,8 @@ def _snapshot(element: Element, cik: str, filing: Filing) -> LoanSnapshot:
     "reportingPeriodBeginningDate",
   )
   period_end = _date(raw["reportingPeriodEndingDate"][0], filing, "reportingPeriodEndingDate")
+  if period_begin > period_end:
+    raise ValueError(f"{filing.accession}: reporting period begins after it ends")
   if period_end != filing.report_period:
     raise ValueError(f"{filing.accession}: element reportingPeriodEndingDate contradicts manifest")
 
@@ -244,8 +263,10 @@ def _snapshot(element: Element, cik: str, filing: Filing) -> LoanSnapshot:
     period_begin,
     tuple(SourceField(name, tuple(values)) for name, values in raw.items()),
   )
-  snapshot.decimal("chargedoffPrincipalAmount")
-  snapshot.decimal("recoveredAmount")
+  for name in DECIMAL_FIELDS:
+    snapshot.decimal(name)
+  for name in INTEGER_FIELDS:
+    snapshot.integer(name)
   snapshot.current_delinquency_status
   snapshot.zero_balance_codes
   return snapshot
@@ -256,6 +277,18 @@ def _date(value: str, filing: Filing, element: str) -> date:
     return datetime.strptime(value, "%m-%d-%Y").date()
   except ValueError as error:
     raise ValueError(f"{filing.accession}: invalid date element {element}") from error
+
+
+def _immutable_value(snapshot: LoanSnapshot, name: str, value: str) -> str | int | Decimal:
+  if name in DECIMAL_FIELDS:
+    decimal_value = snapshot.decimal(name)
+    assert decimal_value is not None
+    return decimal_value
+  if name in INTEGER_FIELDS:
+    integer_value = snapshot.integer(name)
+    assert integer_value is not None
+    return integer_value
+  return value
 
 
 def _local_name(tag: str) -> str:
