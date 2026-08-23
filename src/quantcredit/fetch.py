@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 CHUNK_BYTES = 1024 * 1024
+DEFAULT_TIMEOUT_SECONDS = 30.0
+DEFAULT_MAX_BYTES = 500_000_000
 
 
 @dataclass(frozen=True)
@@ -27,8 +29,8 @@ def fetch(
   url: str,
   destination: Path,
   *,
-  timeout_seconds: float,
-  max_bytes: int,
+  timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+  max_bytes: int = DEFAULT_MAX_BYTES,
   expected_bytes: int | None = None,
   expected_sha256: str | None = None,
   headers: Mapping[str, str] | None = None,

@@ -20,7 +20,7 @@ class FetchTests(unittest.TestCase):
     destination = Path(directory.name) / "loans.csv"
 
     with patch("quantcredit.fetch._open", return_value=_Response(data, final_url)):
-      receipt = fetch(url, destination, timeout_seconds=1, max_bytes=100)
+      receipt = fetch(url, destination)
 
     self.assertEqual(receipt.bytes, len(data))
     self.assertEqual(receipt.sha256, hashlib.sha256(data).hexdigest())

@@ -291,7 +291,8 @@ does not prove, and what would reopen the decision.
 - **INV-14 — Explainable toolkit:** A helper's name, signature, return value,
   and test expose the operation it performs. No helper chooses a target, split,
   model, threshold, or conclusion implicitly, and no generic "find insights" or
-  "solve dataset" interface exists.
+  "solve dataset" interface exists. The common call uses minimal required
+  arguments and safe defaults, while remaining simple enough to reproduce live.
 
 - **AC-1 — Data boundary:** A clean-revision experiment validates all twelve
   Ford 2024-A reports for 2025, emits aggregate schema/identity/transition/
@@ -587,6 +588,7 @@ The first possible temporal promotion questions are deliberately separate:
 - **D-11:** Optimize the toolkit for comprehension and causal correctness, not
   API breadth. Prefer named dataframe-in/table-out functions over classes,
   registries, automatic insight generation, or a generic pipeline abstraction.
+  Optimize the common path for live recall and hand-coding, not package magic.
 - **D-12:** Keep `quantcredit` independently useful if the graph hypothesis
   fails. SEC semantics, temporal validation, classical modeling, calibration,
   and economic interpretation are primary project outcomes.
