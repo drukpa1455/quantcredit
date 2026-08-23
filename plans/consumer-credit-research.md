@@ -342,9 +342,9 @@ does not prove, and what would reopen the decision.
 - TinyMesh's `experiments.CATALOG`, `experiments.run`, and `docs/research/` own
   TinyMesh-only runnable policy and promoted-runtime evidence. Consumer-credit
   acquisition, semantics, model results, and conclusions do not belong there.
-- `quantcredit` owns the initial filing declaration, manifest validation,
-  bounded acquisition path, and canonical notebook shell. The real EX-102 pins,
-  parsing, targets, and models remain incomplete.
+- `quantcredit` owns the filing declaration, twelve verified EX-102 pins, a
+  reusable bounded HTTPS transfer, SEC acquisition policy, and the canonical
+  notebook shell. Parsing, targets, and models remain incomplete.
 
 ### Proposed flow
 
@@ -404,6 +404,7 @@ quantcredit/
   notebooks/
     credit_research.py           canonical # %% executable narrative
   src/quantcredit/
+    fetch.py                     bounded HTTPS transfer + verified cache
     source.py                    source declaration + manifest checks
     acquire.py                   bounded SEC acquisition + checksum pinning
     panel.py                     schema facts, identity, state transitions
