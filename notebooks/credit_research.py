@@ -15,6 +15,8 @@ if not (ROOT / "pyproject.toml").is_file():
 
 
 # %% 01 — Acquire and verify sources
+# Acquisition is the explicit `python -m quantcredit.acquire` shell effect.
+# The notebook reads only the resulting tracked declaration and ignored cache.
 manifest = load_manifest(ROOT / "sources/ford-credit-auto-owner-trust-2024-a.json")
 manifest.summary()
 
