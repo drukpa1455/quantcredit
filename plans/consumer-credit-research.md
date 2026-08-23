@@ -171,9 +171,10 @@ and portfolio research are first-class outcomes even if no graph model wins.
 ### Current behavior
 
 `quantcredit` now owns twelve pinned EX-102 documents, bounded acquisition,
-typed streaming snapshots, identity and continuity validation, and the canonical
-percent-script notebook shell. It does not yet emit the aggregate transition
-audit, define a target, or provide a credit-analysis toolkit. TinyMesh can
+typed streaming snapshots, identity and continuity validation, an aggregate-only
+transition audit, one explicit three-report target, and executable notebook
+sections `00` through `04`. It does not yet provide the classical
+credit-analysis toolkit. TinyMesh can
 express a homogeneous edge-aware loan graph and a fixed-node monthly segment
 graph, but there is no evidence that either adds useful information beyond a
 tabular model. Adding relational or dynamic-temporal APIs now would violate
@@ -785,6 +786,8 @@ label exists.
 or rejects default, prepayment, and loss targets before modeling can hide a
 semantic error.
 
+**Status:** Complete at implementation revision `d620625`.
+
 **Done when:**
 
 - The bounded `python -m quantcredit.audit` command emits only aggregate JSON
@@ -823,6 +826,21 @@ semantic error.
 
 - GBM/GINE comparison, feature selection, hyperparameter search, source
   expansion, and runtime promotion.
+
+**Evidence:**
+
+- All twelve exact source pins produced 408,052 snapshots, 38,224 loan
+  identities, 369,668 contiguous transitions across 41 observed transition
+  types, zero duplicate keys, and zero retained immutable contradictions.
+- The accepted three-report serious-delinquency-or-charge-off target has 2,855
+  positives and 287,209 fully observed negatives. The audit separately reports
+  18,724 competing terminal events, 88,887 right-censored cutoffs, and 61,013
+  ineligible cutoffs.
+- Standalone prepayment is rejected because Schedule AL code 1 combines prepaid
+  and matured loans. Ultimate net loss is rejected because the bounded panel
+  does not observe a complete recovery horizon.
+- Exact pins, command, results, limits, and reopening conditions are retained in
+  `docs/research/consumer-credit-data.md`.
 
 ### Stage 2: Classical credit-analysis toolkit and baseline
 
@@ -903,11 +921,10 @@ semantic error.
 
 ## Open decisions
 
-- **O-1 — Target:** Recommend first serious delinquency or charge-off within
-  three subsequent reports, with prepayment as a competing event and realized
-  loss modeled separately. Stage 1 must verify exact Schedule AL fields,
-  transition consistency, event count, and censoring before this becomes a
-  contract. Blocks Stage 2.
+- **O-1 — Target (decided):** Use first serious delinquency or charge-off within
+  three subsequent reports, with every other reported zero-balance code as a
+  competing event. Censor missing follow-up and insufficient future reports.
+  Reject standalone prepayment and ultimate net loss for this bounded panel.
 - **O-2 — Source expansion:** Recommend adding at least one non-prime issuer and
   more vintages only after the one-trust parser and target audit land. Cross-
   originator claims require an issuer-held-out test; the Stage 1 pilot cannot
