@@ -43,7 +43,7 @@ class AcquisitionTests(unittest.TestCase):
     self.addCleanup(directory.cleanup)
     destination = Path(directory.name) / "asset.xml"
 
-    with patch("quantcredit.acquire._open", return_value=_Response(data, url)):
+    with patch("quantcredit.fetch._open", return_value=_Response(data, url)):
       receipt = download(
         url,
         destination,
@@ -57,7 +57,7 @@ class AcquisitionTests(unittest.TestCase):
     self.assertEqual(destination.read_bytes(), data)
     self.assertFalse(destination.with_name("asset.xml.part").exists())
 
-    with patch("quantcredit.acquire._open", side_effect=AssertionError("network used")):
+    with patch("quantcredit.fetch._open", side_effect=AssertionError("network used")):
       cached = download(
         url,
         destination,
@@ -77,7 +77,7 @@ class AcquisitionTests(unittest.TestCase):
     destination = Path(directory.name) / "asset.xml"
 
     with (
-      patch("quantcredit.acquire._open", return_value=_Response(data, url, content_length=-1)),
+      patch("quantcredit.fetch._open", return_value=_Response(data, url, content_length=-1)),
       self.assertRaisesRegex(ValueError, "exceeds byte ceiling"),
     ):
       download(
@@ -97,8 +97,8 @@ class AcquisitionTests(unittest.TestCase):
     destination = Path(directory.name) / "asset.xml"
 
     with (
-      patch("quantcredit.acquire._open", return_value=_Response(b"x", "https://example.com/x")),
-      self.assertRaisesRegex(ValueError, "SEC URL must use"),
+      patch("quantcredit.fetch._open", return_value=_Response(b"x", "https://example.com/x")),
+      self.assertRaisesRegex(ValueError, "unexpected redirect"),
     ):
       download(
         url,
@@ -117,7 +117,7 @@ class AcquisitionTests(unittest.TestCase):
     destination = Path(directory.name) / "asset.xml"
 
     with (
-      patch("quantcredit.acquire._open", return_value=_Response(data, url)),
+      patch("quantcredit.fetch._open", return_value=_Response(data, url)),
       self.assertRaisesRegex(ValueError, "byte count mismatch"),
     ):
       download(
@@ -139,7 +139,7 @@ class AcquisitionTests(unittest.TestCase):
     destination = Path(directory.name) / "asset.xml"
 
     with (
-      patch("quantcredit.acquire._open", return_value=_Response(data, url)),
+      patch("quantcredit.fetch._open", return_value=_Response(data, url)),
       self.assertRaisesRegex(ValueError, "checksum mismatch"),
     ):
       download(
@@ -166,9 +166,9 @@ class AcquisitionTests(unittest.TestCase):
     index = self._index("asset.xml", len(data))
     cache = manifest_path.parent / "cache"
 
-    with patch(
-      "quantcredit.acquire._open",
-      side_effect=[_Response(index, filing.index_url), _Response(data, asset_url)],
+    with (
+      patch("quantcredit.acquire._open", return_value=_Response(index, filing.index_url)),
+      patch("quantcredit.fetch._open", return_value=_Response(data, asset_url)),
     ):
       acquired = acquire_manifest(
         manifest_path,
@@ -183,7 +183,7 @@ class AcquisitionTests(unittest.TestCase):
     self.assertEqual(acquired.filings[0].bytes, len(data))
     self.assertEqual(acquired.filings[0].sha256, hashlib.sha256(data).hexdigest())
 
-    with patch("quantcredit.acquire._open", side_effect=AssertionError("network used")):
+    with patch("quantcredit.fetch._open", side_effect=AssertionError("network used")):
       repeated = acquire_manifest(
         manifest_path,
         cache,

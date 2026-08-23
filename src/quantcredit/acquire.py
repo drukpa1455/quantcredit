@@ -3,20 +3,19 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
+from quantcredit.fetch import Receipt, fetch
 from quantcredit.source import (
   DEFAULT_MANIFEST,
-  SHA256,
   Filing,
   SourceManifest,
   load_manifest,
@@ -36,14 +35,6 @@ CHUNK_BYTES = 1024 * 1024
 class Asset:
   url: str
   declared_bytes: int | None
-
-
-@dataclass(frozen=True)
-class Receipt:
-  path: Path
-  bytes: int
-  sha256: str
-  cache_hit: bool
 
 
 def discover_ex102(index_html: bytes, filing: Filing, cik: str) -> Asset:
@@ -135,44 +126,16 @@ def download(
 ) -> Receipt:
   """Download one SEC document atomically or reuse an exactly verified cache."""
   validate_sec_host(url)
-  if timeout_seconds <= 0 or max_bytes <= 0:
-    raise ValueError("timeout and byte ceiling must be positive")
-  if expected_bytes is not None and expected_bytes <= 0:
-    raise ValueError("expected bytes must be positive")
-  if expected_sha256 is not None and SHA256.fullmatch(expected_sha256) is None:
-    raise ValueError("expected SHA-256 is invalid")
-
-  if destination.exists():
-    if expected_bytes is None or expected_sha256 is None:
-      raise ValueError(f"unverified cache file exists: {destination}")
-    receipt = _hash_file(destination, max_bytes=max_bytes, cache_hit=True)
-    _verify(receipt, expected_bytes, expected_sha256)
-    return receipt
-
-  destination.parent.mkdir(parents=True, exist_ok=True)
-  temporary = destination.with_name(f"{destination.name}.part")
-  temporary.unlink(missing_ok=True)
-  request = Request(url, headers={"Accept": "application/xml,text/html", "User-Agent": user_agent})
-  try:
-    with _open(request, timeout_seconds) as response:
-      final_url = response.geturl()
-      validate_sec_host(final_url)
-      if final_url != url:
-        raise ValueError(f"unexpected redirect for SEC document: {url} -> {final_url}")
-      declared = response.headers.get("Content-Length")
-      if declared is not None and int(declared) > max_bytes:
-        raise ValueError(f"SEC document exceeds byte ceiling: {url}")
-      with temporary.open("xb") as output:
-        receipt = _copy(response, output, temporary, max_bytes=max_bytes)
-    if expected_bytes is not None or expected_sha256 is not None:
-      _verify(receipt, expected_bytes, expected_sha256)
-    os.replace(temporary, destination)
-    return Receipt(destination, receipt.bytes, receipt.sha256, cache_hit=False)
-  except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
-    temporary.unlink(missing_ok=True)
-    if isinstance(error, ValueError):
-      raise
-    raise ValueError(f"cannot acquire SEC document {url}: {error}") from error
+  return fetch(
+    url,
+    destination,
+    headers={"Accept": "application/xml,text/html", "User-Agent": user_agent},
+    timeout_seconds=timeout_seconds,
+    max_bytes=max_bytes,
+    expected_bytes=expected_bytes,
+    expected_sha256=expected_sha256,
+    allow_redirects=False,
+  )
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -254,39 +217,6 @@ def _fetch(url: str, *, user_agent: str, timeout_seconds: float, max_bytes: int)
       return bytes(content)
   except (HTTPError, URLError, TimeoutError, OSError) as error:
     raise ValueError(f"cannot acquire SEC index {url}: {error}") from error
-
-
-def _copy(source: BinaryIO, output: BinaryIO, path: Path, *, max_bytes: int) -> Receipt:
-  digest = hashlib.sha256()
-  byte_count = 0
-  while chunk := source.read(CHUNK_BYTES):
-    byte_count += len(chunk)
-    if byte_count > max_bytes:
-      raise ValueError(f"SEC document exceeds byte ceiling: {path}")
-    output.write(chunk)
-    digest.update(chunk)
-  output.flush()
-  os.fsync(output.fileno())
-  return Receipt(path, byte_count, digest.hexdigest(), cache_hit=False)
-
-
-def _hash_file(path: Path, *, max_bytes: int, cache_hit: bool) -> Receipt:
-  digest = hashlib.sha256()
-  byte_count = 0
-  with path.open("rb") as source:
-    while chunk := source.read(CHUNK_BYTES):
-      byte_count += len(chunk)
-      if byte_count > max_bytes:
-        raise ValueError(f"cached SEC document exceeds byte ceiling: {path}")
-      digest.update(chunk)
-  return Receipt(path, byte_count, digest.hexdigest(), cache_hit)
-
-
-def _verify(receipt: Receipt, expected_bytes: int | None, expected_sha256: str | None) -> None:
-  if expected_bytes is not None and receipt.bytes != expected_bytes:
-    raise ValueError(f"SEC document byte count mismatch: {receipt.path}")
-  if expected_sha256 is not None and receipt.sha256 != expected_sha256:
-    raise ValueError(f"SEC document checksum mismatch: {receipt.path}")
 
 
 def _last_integer(cells: tuple[str, ...]) -> int | None:
