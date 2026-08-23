@@ -20,6 +20,7 @@ class SourceManifestTests(unittest.TestCase):
     self.assertEqual(manifest.filings[0].report_period.isoformat(), "2025-01-31")
     self.assertEqual(manifest.filings[-1].report_period.isoformat(), "2025-12-31")
     self.assertEqual(manifest.summary()["pinned_ex102_documents"], 0)
+    self.assertEqual(manifest.access_policy.maximum_requests_per_second, 10)
 
   def test_rejects_duplicate_report_period(self) -> None:
     raw = json.loads(MANIFEST.read_text())

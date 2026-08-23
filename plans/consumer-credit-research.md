@@ -342,9 +342,9 @@ does not prove, and what would reopen the decision.
 - TinyMesh's `experiments.CATALOG`, `experiments.run`, and `docs/research/` own
   TinyMesh-only runnable policy and promoted-runtime evidence. Consumer-credit
   acquisition, semantics, model results, and conclusions do not belong there.
-- `quantcredit` owns the initial filing declaration, manifest validation, and
-  canonical notebook shell. Acquisition, parsing, targets, and models remain
-  unimplemented.
+- `quantcredit` owns the initial filing declaration, manifest validation,
+  bounded acquisition path, and canonical notebook shell. The real EX-102 pins,
+  parsing, targets, and models remain incomplete.
 
 ### Proposed flow
 
@@ -404,7 +404,8 @@ quantcredit/
   notebooks/
     credit_research.py           canonical # %% executable narrative
   src/quantcredit/
-    source.py                    bounded SEC acquisition + manifest checks
+    source.py                    source declaration + manifest checks
+    acquire.py                   bounded SEC acquisition + checksum pinning
     panel.py                     schema facts, identity, state transitions
     audit.py                     bounded aggregate audit command
     targets.py                   explicit outcomes and censoring
@@ -686,8 +687,9 @@ contributor can verify exact public inputs without committing loan rows.
 **How to verify:**
 
 - `uv sync --locked`
-- `uv run --locked python -m unittest tests.test_source`
+- `uv run --locked python -m unittest tests.test_source tests.test_acquire`
 - `uv run --locked python -m quantcredit.source --help`
+- `uv run --locked python -m quantcredit.acquire --help`
 - Restart the Zed kernel and run notebook sections `00` and `01` in order.
 - Run acquisition once against an empty temporary directory, rerun against the
   verified cache, and compare the manifest observation; do not retain the raw
