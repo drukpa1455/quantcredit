@@ -173,8 +173,9 @@ and portfolio research are first-class outcomes even if no graph model wins.
 `quantcredit` now owns twelve pinned EX-102 documents, bounded acquisition,
 typed streaming snapshots, identity and continuity validation, an aggregate-only
 transition audit, one explicit three-report target, and executable notebook
-sections `00` through `04`. It does not yet provide the classical
-credit-analysis toolkit. TinyMesh can
+sections `00` through `05`, including a label-maturity-aware chronological
+split. It does not yet materialize the modeling population or provide the
+classical credit-analysis toolkit. TinyMesh can
 express a homogeneous edge-aware loan graph and a fixed-node monthly segment
 graph, but there is no evidence that either adds useful information beyond a
 tabular model. Adding relational or dynamic-temporal APIs now would violate
@@ -859,6 +860,40 @@ semantic error.
 - **Refine after:** Stage 1 fixes target semantics, event frequency, useful
   fields, horizon, and issuer consistency. Do not finalize module-level issues
   before that evidence.
+
+#### Issue 2.1: Freeze the causal chronological protocol
+
+**What and why:** Choose prediction cutoffs whose earlier labels have fully
+matured before the next fold begins. A random row split or adjacent monthly
+cutoffs would let future performance influence an apparently earlier model.
+
+**Status:** Complete at implementation revision `09731d4`.
+
+**Decision:** For the twelve-report pilot and three-report target horizon, train
+at 2025-01-31 with labels observed through 2025-04-30, validate at 2025-05-31
+with labels observed through 2025-08-31, and test once at 2025-09-30 with labels
+observed through 2025-12-31. A longer panel may include every earlier training
+cutoff whose full horizon ends before validation.
+
+**Done when:**
+
+- `chronological_split` rejects nonpositive horizons, shuffled, duplicate,
+  gapped, and insufficient report sequences.
+- Every training label horizon ends before validation, and the validation label
+  horizon ends before test. **INV-4**
+- Notebook section `05` invokes the tested owner and displays the cutoffs and
+  label-maturity dates without implementing split arithmetic in the cell.
+
+**How to verify:**
+
+- `uv run --locked python -m unittest tests.test_splits`
+- Restart the Zed kernel and run notebook sections `00` through `05` in order.
+- `uv run --locked --group lint ruff check .`
+- `uv run --locked --group lint mypy`
+
+**Next issue:** Materialize only eligible loan-cutoff examples at these dates,
+declare past-only features and excluded leakage fields, and report fold-level
+population and event counts before importing a model.
 
 ### Stage 3: Matched static GBM/GINE experiment
 
