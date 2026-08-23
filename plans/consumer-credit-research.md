@@ -170,13 +170,14 @@ and portfolio research are first-class outcomes even if no graph model wins.
 
 ### Current behavior
 
-`quantcredit` now owns the source declaration, its validator, and the canonical
-percent-script notebook shell. It does not yet acquire or parse EX-102 data,
-define a target, or provide a credit-analysis toolkit. TinyMesh can express a
-homogeneous edge-aware loan graph and a fixed-node monthly segment graph, but
-there is no evidence that either adds useful information beyond a tabular model.
-Adding relational or dynamic-temporal APIs now would violate TinyMesh's
-live-caller and graduation rules.
+`quantcredit` now owns twelve pinned EX-102 documents, bounded acquisition,
+typed streaming snapshots, identity and continuity validation, and the canonical
+percent-script notebook shell. It does not yet emit the aggregate transition
+audit, define a target, or provide a credit-analysis toolkit. TinyMesh can
+express a homogeneous edge-aware loan graph and a fixed-node monthly segment
+graph, but there is no evidence that either adds useful information beyond a
+tabular model. Adding relational or dynamic-temporal APIs now would violate
+TinyMesh's live-caller and graduation rules.
 
 ### Desired behavior
 
@@ -345,7 +346,8 @@ does not prove, and what would reopen the decision.
   acquisition, semantics, model results, and conclusions do not belong there.
 - `quantcredit` owns the filing declaration, twelve verified EX-102 pins, a
   reusable bounded HTTPS transfer, SEC acquisition policy, and the canonical
-  notebook shell. Parsing, targets, and models remain incomplete.
+  notebook shell. Typed snapshot parsing and continuity validation are complete;
+  aggregate transition evidence, targets, and models remain incomplete.
 
 ### Proposed flow
 
