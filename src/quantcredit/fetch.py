@@ -78,6 +78,26 @@ def fetch(
     raise ValueError(f"cannot download {url}: {error}") from error
 
 
+def verify(
+  path: Path,
+  *,
+  expected_bytes: int,
+  expected_sha256: str,
+  max_bytes: int = DEFAULT_MAX_BYTES,
+) -> Receipt:
+  """Verify one existing cache file without performing network I/O."""
+  if expected_bytes <= 0 or max_bytes <= 0:
+    raise ValueError("expected bytes and byte ceiling must be positive")
+  if not _is_sha256(expected_sha256):
+    raise ValueError("expected SHA-256 is invalid")
+  try:
+    receipt = _hash_file(path, max_bytes=max_bytes, cache_hit=True)
+  except OSError as error:
+    raise ValueError(f"cannot verify cached download {path}: {error}") from error
+  _verify(receipt, expected_bytes, expected_sha256)
+  return receipt
+
+
 def _validate_https(url: str) -> None:
   parsed = urlparse(url)
   if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
