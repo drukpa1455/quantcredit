@@ -475,14 +475,13 @@ The Stage 1 pilot is Ford Credit Auto Owner Trust 2024-A, CIK
 | 2025-11-30 | `0002014176-25-000051` |
 | 2025-12-31 | `0002014176-26-000002` |
 
-The tracked `sources/ford-credit-auto-owner-trust-2024-a.json` declaration
-initially pins accession and official archive URL. Acquisition discovers the
-EX-102 document from the filing index, streams it into an ignored cache, then
-records exact bytes and digest in the declaration before evidence can run. The
-executable experiment never trusts a mutable "latest" query. An identifying SEC
-user agent is an explicit runtime input, conventionally supplied through
-`QUANTCREDIT_SEC_USER_AGENT`; its personal value is neither committed nor
-printed.
+The tracked `sources/ford-credit-auto-owner-trust-2024-a.json` declaration pins
+each accession, official archive URL, EX-102 URL, byte count, and digest.
+Acquisition streams each document into an ignored cache and rejects drift before
+evidence can run. The executable experiment never trusts a mutable "latest"
+query. An identifying SEC user agent is an explicit runtime input,
+conventionally supplied through `QUANTCREDIT_SEC_USER_AGENT`; its personal value
+is neither committed nor printed.
 
 Parsing is streaming and standard-library-first because each asset file is
 large, DOM materialization is unnecessary, and acquisition should have a small
@@ -717,9 +716,12 @@ contributor can verify exact public inputs without committing loan rows.
 prove identity, field-state, and transition preconditions before any feature or
 label exists.
 
+**Status:** Complete at implementation revision `3910493`.
+
 **Done when:**
 
-- The parser validates the root schema/version and required identity/reporting
+- The parser validates the official v3.1 namespace/root against the
+  manifest-declared schema version and validates required identity/reporting
   elements before yielding typed snapshots.
 - Canonical loan and snapshot keys enforce **INV-2**; contradictions include
   accession and element names but never raw row dumps.
@@ -734,6 +736,34 @@ label exists.
 - `uv run --locked python -m unittest tests.test_panel`
 - Measure peak resident memory on one declared EX-102 file and record the file
   size, loan count, command, device, and inspected revision.
+
+**Evidence:**
+
+- The official v3.1 XSD qualifies `assetData` and its children with
+  `http://www.sec.gov/edgar/document/absee/autoloan/assetdata`; the pinned Ford
+  documents use that namespace but do not encode a version attribute. The
+  manifest therefore owns version identity while the document proves the
+  namespace/root contract.
+- The XSD requires `assetTypeNumber` and `assetNumber`; this research boundary
+  additionally requires both reporting dates and checks the ending date against
+  the filing declaration. Schema-defined repeated fields remain tuples rather
+  than being silently collapsed.
+- Optional absence remains `missing`, numeric zero remains a reported value,
+  and zero-balance code `99` remains field-specific `unavailable`; the parser
+  does not invent a generic not-applicable state or interpret disappearance as
+  an event.
+- `loanMaturityDate` changes for continuing loans and vehicle descriptors receive
+  rare corrections, so neither is classified as an immutable origination fact.
+- All twelve pinned documents passed at `3910493`: 408,052 snapshots, 38,224
+  loans, 12 periods, no duplicate snapshot keys, and no contradictions among the
+  retained immutable origination fields.
+- On an arm64 Apple M4 with 32 GiB RAM, the 136,232,097-byte January file yielded
+  38,155 snapshots in 8.64 seconds with 29,933,568 bytes maximum resident set
+  size. The measured command was:
+
+  ```console
+  /usr/bin/time -l uv run --locked python -c 'from pathlib import Path; from quantcredit.panel import read_snapshots; from quantcredit.source import load_manifest; manifest=load_manifest(); filing=manifest.filings[0]; path=Path("/Users/drk/src/quantcredit/data/sec") / filing.accession / "autoloanmonthlydeal1153pool.xml"; print(sum(1 for _ in read_snapshots(path, manifest, filing)))'
+  ```
 
 **Agent notes:**
 
