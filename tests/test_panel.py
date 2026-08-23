@@ -46,7 +46,7 @@ class PanelTests(unittest.TestCase):
         self._asset(
           self.second,
           "PRIVATE-ASSET-1",
-          ("originalLoanAmount", "100.00"),
+          ("originalLoanAmount", "100.00000000"),
           ("loanMaturityDate", "02-01-2029"),
           ("zeroBalanceCode", "1"),
           ("recoveredAmount", "0.00"),
