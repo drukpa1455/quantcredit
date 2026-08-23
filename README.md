@@ -25,6 +25,14 @@ uv run --locked python -m quantcredit.source
 Open the repository in Zed, select its `.venv` toolchain and kernel, then run a
 cell with `Ctrl-Shift-Enter`.
 
+To acquire and checksum-pin the declared EX-102 files, provide the identifying
+user agent required by SEC access policy without storing it in the repository:
+
+```console
+export QUANTCREDIT_SEC_USER_AGENT="your-name your-email"
+uv run --locked python -m quantcredit.acquire
+```
+
 Raw loan records, notebook outputs, and personal SEC user-agent values are not
 committed. This is research and research preparation, not underwriting or
 investment advice.
