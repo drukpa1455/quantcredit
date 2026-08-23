@@ -48,6 +48,8 @@ def serious_delinquency_target(
   """Classify first 60+ delinquency or charge-off after one eligible cutoff."""
   if horizon_reports <= 0:
     raise ValueError("target horizon must be positive")
+  if cutoff < 0 or cutoff >= len(history):
+    raise ValueError("target cutoff is outside the loan history")
   state = history[cutoff]
   if (
     state is None
@@ -63,12 +65,12 @@ def serious_delinquency_target(
   for future in history[cutoff + 1 : cutoff + horizon_reports + 1]:
     if future is None:
       return TargetResult.CENSORED
-    if future.charged_off or (
-      future.delinquency_days is not None and future.delinquency_days >= 60
-    ):
+    if future.charged_off:
       return TargetResult.POSITIVE
     if future.terminal:
       return TargetResult.COMPETING
+    if future.delinquency_days is not None and future.delinquency_days >= 60:
+      return TargetResult.POSITIVE
     if future.delinquency_days is None:
       return TargetResult.CENSORED
   return TargetResult.NEGATIVE
