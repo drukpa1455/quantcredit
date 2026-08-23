@@ -7,6 +7,7 @@ from platform import python_version
 
 from quantcredit.audit import audit_sources
 from quantcredit.source import load_manifest
+from quantcredit.splits import chronological_split
 
 ROOT = Path.cwd()
 if not (ROOT / "pyproject.toml").is_file():
@@ -51,6 +52,8 @@ audit["targets"]
 
 # %% 05 — Chronological split
 # What would have been knowable at each prediction cutoff?
+split = chronological_split(tuple(filing.report_period for filing in manifest.filings))
+split.summary()
 
 
 # %% 06 — Shallow GBM baseline
