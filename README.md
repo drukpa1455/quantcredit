@@ -1,0 +1,35 @@
+# quantcredit
+
+Executable consumer-credit research from public records to classical and graph
+models.
+
+The project starts with SEC Form ABS-EE auto-loan disclosures. It first proves
+what the records mean, then builds a shallow gradient-boosted baseline, and only
+then asks whether relational structure adds information.
+
+```text
+SEC filings -> loan states -> causal target -> shallow GBM -> graph controls
+```
+
+## Notebook
+
+[`notebooks/credit_research.py`](notebooks/credit_research.py) is the canonical
+notebook. Zed executes each block between `# %%` markers through a Jupyter
+kernel while Git and coding agents see ordinary Python.
+
+```console
+uv sync --locked --group notebook
+uv run --locked python -m quantcredit.source
+```
+
+Open the repository in Zed, select its `.venv` toolchain and kernel, then run a
+cell with `Ctrl-Shift-Enter`.
+
+Raw loan records, notebook outputs, and personal SEC user-agent values are not
+committed. This is research and research preparation, not underwriting or
+investment advice.
+
+## Plan
+
+The complete staged contract is in
+[`plans/consumer-credit-research.md`](plans/consumer-credit-research.md).
