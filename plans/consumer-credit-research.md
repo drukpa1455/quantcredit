@@ -756,11 +756,11 @@ label exists.
   an event.
 - `loanMaturityDate` changes for continuing loans and vehicle descriptors receive
   rare corrections, so neither is classified as an immutable origination fact.
-- All twelve pinned documents passed at `a860203`: 408,052 snapshots, 38,224
+- All twelve pinned documents passed from merged revision `e3aa924`: 408,052 snapshots, 38,224
   loans, 12 periods, no duplicate snapshot keys, and no contradictions among the
   retained immutable origination fields.
 - On an arm64 Apple M4 with 32 GiB RAM, the 136,232,097-byte January file yielded
-  38,155 snapshots in 8.64 seconds with 29,933,568 bytes maximum resident set
+  38,155 snapshots in 15.47 seconds with 28,540,928 bytes maximum resident set
   size. A relative-path reproduction command is:
 
   ```console
