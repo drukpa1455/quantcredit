@@ -5,6 +5,7 @@ from importlib.metadata import version
 from pathlib import Path
 from platform import python_version
 
+from quantcredit.audit import audit_sources
 from quantcredit.source import load_manifest
 
 ROOT = Path.cwd()
@@ -23,14 +24,29 @@ manifest.summary()
 
 # %% 02 — Schema, identity, and missingness
 # Which fields exist, which states are distinct, and is asset identity stable?
+audit = audit_sources(manifest, ROOT / "data/sec")
+{
+  "panel": audit["panel"],
+  "states": audit["states"],
+  "most_missing_fields": sorted(
+    audit["fields"].items(), key=lambda item: item[1]["missing"], reverse=True
+  )[:10],
+}
 
 
 # %% 03 — Loan-state transitions
 # Which observed transitions are valid, terminal, reversible, or censored?
+{
+  "continuity": audit["continuity"],
+  "most_common_transitions": sorted(
+    audit["transitions"].items(), key=lambda item: item[1], reverse=True
+  )[:15],
+}
 
 
 # %% 04 — Target and censoring decision
 # Which outcome can be derived without treating disappearance as an event?
+audit["targets"]
 
 
 # %% 05 — Chronological split
