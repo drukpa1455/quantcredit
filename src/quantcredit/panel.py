@@ -140,6 +140,49 @@ class PanelSummary:
   periods: int
 
 
+class SnapshotValidator:
+  """Incrementally validate ordered identity and immutable source facts."""
+
+  def __init__(self) -> None:
+    self._period_assets: set[AssetKey] = set()
+    self._loans: set[AssetKey] = set()
+    self._periods: set[date] = set()
+    self._immutable: dict[tuple[AssetKey, str], str | int | Decimal] = {}
+    self._last_period: date | None = None
+    self._count = 0
+
+  def observe(self, snapshot: LoanSnapshot) -> None:
+    period = snapshot.key.report_period
+    if self._last_period is not None and period < self._last_period:
+      raise ValueError(f"{snapshot.accession}: report periods are not monotone")
+    if period != self._last_period:
+      self._period_assets.clear()
+      self._last_period = period
+    if snapshot.key.asset in self._period_assets:
+      raise ValueError(f"{snapshot.accession}: duplicate snapshot key")
+    self._period_assets.add(snapshot.key.asset)
+    self._loans.add(snapshot.key.asset)
+    self._periods.add(period)
+    self._count += 1
+
+    for name in IMMUTABLE_FIELDS:
+      values = snapshot.field(name).values
+      if not values:
+        continue
+      if len(values) != 1:
+        raise ValueError(f"{snapshot.accession}: repeated immutable element {name}")
+      key = (snapshot.key.asset, name)
+      value = _immutable_value(snapshot, name, values[0])
+      previous = self._immutable.setdefault(key, value)
+      if previous != value:
+        raise ValueError(f"{snapshot.accession}: contradictory immutable element {name}")
+
+  def summary(self) -> PanelSummary:
+    if self._count == 0:
+      raise ValueError("panel contains no snapshots")
+    return PanelSummary(self._count, len(self._loans), len(self._periods))
+
+
 def read_snapshots(
   path: Path,
   manifest: SourceManifest,
@@ -183,39 +226,10 @@ def read_snapshots(
 
 def validate_snapshots(snapshots: Iterable[LoanSnapshot]) -> PanelSummary:
   """Validate ordered snapshot identity and immutable origination facts."""
-  keys: set[SnapshotKey] = set()
-  loans: set[AssetKey] = set()
-  periods: set[date] = set()
-  immutable: dict[tuple[AssetKey, str], str | int | Decimal] = {}
-  last_period: date | None = None
-  count = 0
-
+  validator = SnapshotValidator()
   for snapshot in snapshots:
-    if last_period is not None and snapshot.key.report_period < last_period:
-      raise ValueError(f"{snapshot.accession}: report periods are not monotone")
-    last_period = snapshot.key.report_period
-    if snapshot.key in keys:
-      raise ValueError(f"{snapshot.accession}: duplicate snapshot key")
-    keys.add(snapshot.key)
-    loans.add(snapshot.key.asset)
-    periods.add(snapshot.key.report_period)
-    count += 1
-
-    for name in IMMUTABLE_FIELDS:
-      values = snapshot.field(name).values
-      if not values:
-        continue
-      if len(values) != 1:
-        raise ValueError(f"{snapshot.accession}: repeated immutable element {name}")
-      key = (snapshot.key.asset, name)
-      value = _immutable_value(snapshot, name, values[0])
-      previous = immutable.setdefault(key, value)
-      if previous != value:
-        raise ValueError(f"{snapshot.accession}: contradictory immutable element {name}")
-
-  if count == 0:
-    raise ValueError("panel contains no snapshots")
-  return PanelSummary(count, len(loans), len(periods))
+    validator.observe(snapshot)
+  return validator.summary()
 
 
 def _snapshot(element: Element, cik: str, filing: Filing) -> LoanSnapshot:
