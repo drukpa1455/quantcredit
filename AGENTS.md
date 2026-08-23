@@ -5,6 +5,8 @@ and an explicit notebook shell.
 
 - `notebooks/credit_research.py` is the sole authored notebook.
 - Stable operations live in `src/quantcredit/`; notebook cells call them.
+- Make the common path memorable and fluid: minimal required arguments, safe
+  defaults, explicit overrides, and helpers simple enough to rederive live.
 - Preserve source states and causal time. Never infer outcomes from disappearance.
 - Keep raw or sampled loan rows, notebook outputs, and personal SEC user agents
   out of Git.
