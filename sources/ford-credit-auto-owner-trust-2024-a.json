@@ -4,6 +4,11 @@
   "issuer": "Ford Credit Auto Owner Trust 2024-A",
   "cik": "0002014176",
   "abs_schema_version": "3.1",
+  "access_policy": {
+    "url": "https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data",
+    "maximum_requests_per_second": 10,
+    "user_agent_env": "QUANTCREDIT_SEC_USER_AGENT"
+  },
   "filings": [
     {
       "report_period": "2025-01-31",

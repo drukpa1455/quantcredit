@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -31,11 +32,19 @@ class Filing:
 
 
 @dataclass(frozen=True)
+class AccessPolicy:
+  url: str
+  maximum_requests_per_second: int
+  user_agent_env: str
+
+
+@dataclass(frozen=True)
 class SourceManifest:
   dataset: str
   issuer: str
   cik: str
   abs_schema_version: str
+  access_policy: AccessPolicy
   filings: tuple[Filing, ...]
 
   def summary(self) -> dict[str, str | int]:
@@ -53,13 +62,7 @@ class SourceManifest:
 
 def load_manifest(path: Path = DEFAULT_MANIFEST) -> SourceManifest:
   """Load and validate one tracked public-source declaration."""
-  try:
-    raw = json.loads(path.read_text())
-  except (OSError, json.JSONDecodeError) as error:
-    raise ValueError(f"cannot read source manifest {path}: {error}") from error
-  if not isinstance(raw, dict):
-    raise ValueError("source manifest must be a JSON object")
-
+  raw = _read_json(path)
   schema = _field(raw, "schema", int)
   if schema != 1:
     raise ValueError(f"unsupported source manifest schema: {schema}")
@@ -78,13 +81,89 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> SourceManifest:
   if len(set(accessions)) != len(accessions):
     raise ValueError("accessions must be unique")
 
+  access = _field(raw, "access_policy", dict)
+  policy_url = _field(access, "url", str)
+  validate_sec_host(policy_url)
+  maximum_rate = _field(access, "maximum_requests_per_second", int)
+  if maximum_rate <= 0:
+    raise ValueError("maximum request rate must be positive")
+  user_agent_env = _field(access, "user_agent_env", str)
+  if re.fullmatch(r"[A-Z][A-Z0-9_]+", user_agent_env) is None:
+    raise ValueError("user-agent environment variable name is invalid")
+
   return SourceManifest(
     dataset=_field(raw, "dataset", str),
     issuer=_field(raw, "issuer", str),
     cik=cik,
     abs_schema_version=_field(raw, "abs_schema_version", str),
+    access_policy=AccessPolicy(
+      policy_url,
+      maximum_rate,
+      user_agent_env,
+    ),
     filings=filings,
   )
+
+
+def record_pin(path: Path, accession: str, url: str, byte_count: int, digest: str) -> None:
+  """Atomically fill one previously empty EX-102 pin."""
+  raw = _read_json(path)
+  filings = _field(raw, "filings", list)
+  matches = [
+    filing
+    for filing in filings
+    if isinstance(filing, dict) and filing.get("accession") == accession
+  ]
+  if len(matches) != 1:
+    raise ValueError(f"cannot locate unique manifest entry for {accession}")
+  filing = matches[0]
+  current = (filing.get("ex102_url"), filing.get("bytes"), filing.get("sha256"))
+  pin = (url, byte_count, digest)
+  if any(value is not None for value in current) and current != pin:
+    raise ValueError(f"source pin changed for {accession}")
+  filing["ex102_url"], filing["bytes"], filing["sha256"] = pin
+
+  temporary = path.with_name(f"{path.name}.part")
+  temporary.write_text(json.dumps(raw, indent=2) + "\n")
+  os.replace(temporary, path)
+
+
+def validate_sec_url(url: str, cik: str, accession: str, *, suffix: str) -> None:
+  """Require one canonical SEC archive URL for the declared accession."""
+  validate_sec_host(url)
+  parsed = urlparse(url)
+  accession_path = accession.replace("-", "")
+  prefix = f"/Archives/edgar/data/{int(cik)}/{accession_path}/"
+  if not parsed.path.startswith(prefix) or not parsed.path.endswith(suffix):
+    raise ValueError(f"SEC URL does not match accession {accession}: {url}")
+
+
+def validate_sec_host(url: str) -> None:
+  """Reject non-canonical hosts and parameterized source URLs."""
+  parsed = urlparse(url)
+  if parsed.scheme != "https" or parsed.netloc != "www.sec.gov":
+    raise ValueError(f"SEC URL must use https://www.sec.gov: {url}")
+  if parsed.params or parsed.query or parsed.fragment:
+    raise ValueError(f"SEC URL must not contain parameters: {url}")
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+  """Read one JSON object with path-bound diagnostic context."""
+  try:
+    raw = json.loads(path.read_text())
+  except (OSError, json.JSONDecodeError) as error:
+    raise ValueError(f"cannot read source manifest {path}: {error}") from error
+  if not isinstance(raw, dict):
+    raise ValueError("source manifest must be a JSON object")
+  return raw
+
+
+def _field(raw: dict[str, Any], name: str, expected: type[Any]) -> Any:
+  """Read one required manifest field with a strict runtime type."""
+  value = raw.get(name)
+  if not isinstance(value, expected) or isinstance(value, bool):
+    raise ValueError(f"{name} must be {expected.__name__}")
+  return value
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -101,7 +180,7 @@ def _filing(raw: Any, cik: str) -> Filing:
   if ACCESSION.fullmatch(accession) is None:
     raise ValueError(f"invalid accession: {accession}")
   index_url = _field(raw, "index_url", str)
-  _validate_sec_url(index_url, cik, accession, suffix=f"/{accession}-index.htm")
+  validate_sec_url(index_url, cik, accession, suffix=f"/{accession}-index.htm")
 
   ex102_url = _optional(raw, "ex102_url", str)
   byte_count = _optional(raw, "bytes", int)
@@ -110,7 +189,7 @@ def _filing(raw: Any, cik: str) -> Filing:
   if any(present) and not all(present):
     raise ValueError(f"EX-102 pin must be complete for {accession}")
   if ex102_url is not None:
-    _validate_sec_url(ex102_url, cik, accession, suffix=".xml")
+    validate_sec_url(ex102_url, cik, accession, suffix=".xml")
     if byte_count is None or byte_count <= 0:
       raise ValueError(f"bytes must be positive for {accession}")
     if digest is None or SHA256.fullmatch(digest) is None:
@@ -121,25 +200,6 @@ def _filing(raw: Any, cik: str) -> Filing:
   except ValueError as error:
     raise ValueError(f"invalid report period for {accession}") from error
   return Filing(report_period, accession, index_url, ex102_url, byte_count, digest)
-
-
-def _validate_sec_url(url: str, cik: str, accession: str, *, suffix: str) -> None:
-  parsed = urlparse(url)
-  accession_path = accession.replace("-", "")
-  prefix = f"/Archives/edgar/data/{int(cik)}/{accession_path}/"
-  if parsed.scheme != "https" or parsed.netloc != "www.sec.gov":
-    raise ValueError(f"SEC URL must use https://www.sec.gov: {url}")
-  if not parsed.path.startswith(prefix) or not parsed.path.endswith(suffix):
-    raise ValueError(f"SEC URL does not match accession {accession}: {url}")
-  if parsed.params or parsed.query or parsed.fragment:
-    raise ValueError(f"SEC URL must not contain parameters: {url}")
-
-
-def _field(raw: dict[str, Any], name: str, expected: type[Any]) -> Any:
-  value = raw.get(name)
-  if not isinstance(value, expected) or isinstance(value, bool):
-    raise ValueError(f"{name} must be {expected.__name__}")
-  return value
 
 
 def _optional(raw: dict[str, Any], name: str, expected: type[Any]) -> Any | None:
