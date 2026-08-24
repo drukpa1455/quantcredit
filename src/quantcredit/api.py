@@ -52,18 +52,18 @@ def examples(
 def fit(
   examples: DataFrame,
   *,
-  depths: tuple[int, ...] = (2, 3, 4),
-  n_estimators: int = 120,
-  learning_rate: float = 0.05,
+  depths: tuple[int, ...] = (1, 2, 3, 4),
+  learning_rates: tuple[float, ...] = (0.02, 0.05, 0.10),
+  estimators: tuple[int, ...] = (60, 120, 240),
   seed: int = 7,
 ) -> Baseline:
-  """Fit the train-only shallow GBM and select depth on validation log loss."""
+  """Fit the train-only shallow GBM sensitivity surface on validation."""
   from quantcredit.baselines import fit_baseline
 
   return fit_baseline(
     examples,
     depths=depths,
-    n_estimators=n_estimators,
-    learning_rate=learning_rate,
+    learning_rates=learning_rates,
+    estimators=estimators,
     seed=seed,
   )
