@@ -877,7 +877,7 @@ cutoff whose full horizon ends before validation.
 
 **Done when:**
 
-- `chronological_split` rejects nonpositive horizons, shuffled, duplicate,
+- `causal_split` rejects nonpositive horizons, shuffled, duplicate,
   gapped, and insufficient report sequences.
 - Every training label horizon ends before validation, and the validation label
   horizon ends before test. **INV-4**
