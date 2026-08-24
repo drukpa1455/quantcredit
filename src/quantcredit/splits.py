@@ -8,7 +8,7 @@ from itertools import pairwise
 
 
 @dataclass(frozen=True)
-class ChronologicalSplit:
+class CausalSplit:
   train_cutoffs: tuple[date, ...]
   validation_cutoff: date
   test_cutoff: date
@@ -31,9 +31,7 @@ class ChronologicalSplit:
     }
 
 
-def chronological_split(
-  report_periods: tuple[date, ...], *, horizon_reports: int = 3
-) -> ChronologicalSplit:
+def causal_split(report_periods: tuple[date, ...], *, horizon_reports: int = 3) -> CausalSplit:
   """Choose train, validation, and test cutoffs with fully matured prior labels."""
   if horizon_reports <= 0:
     raise ValueError("label horizon must be positive")
@@ -52,7 +50,7 @@ def chronological_split(
   validation_index = test_index - horizon_reports - 1
   train_end = validation_index - horizon_reports
   train_cutoffs = report_periods[:train_end]
-  return ChronologicalSplit(
+  return CausalSplit(
     train_cutoffs=train_cutoffs,
     validation_cutoff=report_periods[validation_index],
     test_cutoff=report_periods[test_index],
