@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from quantcredit.acquire import DEFAULT_ASSET_LIMIT, DEFAULT_CACHE
@@ -18,13 +18,39 @@ from quantcredit.targets import LoanState, target_counts
 
 DEFAULT_HORIZON_REPORTS = 3
 
+if TYPE_CHECKING:
+  from matplotlib.figure import Figure
+
+
+@dataclass(frozen=True)
+class Audit:
+  """Aggregate evidence produced by one verified panel scan."""
+
+  source: dict[str, Any]
+  panel: dict[str, Any]
+  fields: dict[str, dict[str, int]]
+  states: dict[str, int]
+  continuity: tuple[dict[str, str | int], ...]
+  transitions: dict[str, int]
+  targets: tuple[dict[str, Any], ...]
+
+  def plot(self) -> Figure:
+    """Render the canonical aggregate evidence figure."""
+    from quantcredit.visuals import plot_audit
+
+    return plot_audit(self)
+
+  def to_dict(self) -> dict[str, Any]:
+    """Return a JSON-serializable representation."""
+    return asdict(self)
+
 
 def audit_sources(
   manifest: SourceManifest,
   cache: Path = DEFAULT_CACHE,
   *,
   horizon_reports: int = DEFAULT_HORIZON_REPORTS,
-) -> dict[str, Any]:
+) -> Audit:
   """Validate all pinned bytes and return no consumer-level observations."""
   if horizon_reports <= 0:
     raise ValueError("target horizon must be positive")
@@ -100,25 +126,25 @@ def audit_sources(
 
   summary = validator.summary()
   counts = target_counts(list(histories.values()), horizon_reports=horizon_reports)
-  return {
-    "source": {
+  return Audit(
+    source={
       **manifest.summary(),
       "documents": coverage,
     },
-    "panel": {
+    panel={
       **asdict(summary),
       "duplicate_snapshot_keys": 0,
       "immutable_contradictions": 0,
     },
-    "fields": {
+    fields={
       name: {"reported": count, "missing": summary.snapshots - count}
       for name, count in sorted(field_presence.items())
     },
-    "states": dict(sorted(states.items())),
-    "continuity": continuity,
-    "transitions": dict(sorted(transitions.items())),
-    "targets": _target_decisions(counts, horizon_reports),
-  }
+    states=dict(sorted(states.items())),
+    continuity=tuple(continuity),
+    transitions=dict(sorted(transitions.items())),
+    targets=tuple(_target_decisions(counts, horizon_reports)),
+  )
 
 
 def _loan_state(snapshot: LoanSnapshot) -> LoanState:
@@ -191,7 +217,7 @@ def main(argv: list[str] | None = None) -> None:
     )
   except ValueError as error:
     parser.error(str(error))
-  print(json.dumps(result, indent=2, sort_keys=True))
+  print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

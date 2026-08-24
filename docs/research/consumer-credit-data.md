@@ -32,7 +32,7 @@ The audit was run from revision `d620625` in an isolated worktree against the
 existing ignored cache:
 
 ```console
-uv run --locked python -m quantcredit.audit --cache ../quantcredit/data/sec
+uv run --locked python -m quantcredit.audits --cache ../quantcredit/data/sec
 ```
 
 The command verifies every byte and checksum before returning aggregate JSON.

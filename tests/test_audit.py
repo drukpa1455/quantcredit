@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
 
-from quantcredit.audit import audit_sources
+import quantcredit as qc
+from quantcredit.audits import Audit, audit_sources
 from quantcredit.source import Filing, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,19 +47,21 @@ class AuditTests(unittest.TestCase):
     self.manifest = replace(source, filings=filings)
 
   def test_emits_aggregate_source_state_continuity_and_target_evidence(self) -> None:
-    result = audit_sources(self.manifest, self.cache, horizon_reports=1)
+    result = qc.audit(self.manifest, self.cache, horizon_reports=1)
 
-    self.assertEqual(result["panel"]["snapshots"], 8)
-    self.assertEqual(result["panel"]["loans"], 5)
-    self.assertEqual(result["continuity"][1]["disappeared"], 1)
-    self.assertEqual(result["continuity"][1]["new"], 1)
-    self.assertEqual(result["transitions"]["delinquency:current -> delinquency:60-89"], 1)
-    decision = result["targets"][0]
+    self.assertIsInstance(result, Audit)
+    self.assertEqual(result.panel["snapshots"], 8)
+    self.assertEqual(result.panel["loans"], 5)
+    self.assertEqual(result.continuity[1]["disappeared"], 1)
+    self.assertEqual(result.continuity[1]["new"], 1)
+    self.assertEqual(result.transitions["delinquency:current -> delinquency:60-89"], 1)
+    decision = result.targets[0]
     self.assertEqual(decision["status"], "derived")
     self.assertEqual(decision["counts"]["positive"], 1)
     self.assertEqual(decision["counts"]["competing_event"], 1)
     self.assertEqual(decision["counts"]["missing_followup"], 1)
-    self.assertNotIn("PRIVATE", repr(result))
+    json.dumps(result.to_dict())
+    self.assertNotIn("PRIVATE", repr(result.to_dict()))
 
   def test_fails_on_source_drift_without_returning_partial_evidence(self) -> None:
     filing = self.manifest.filings[1]

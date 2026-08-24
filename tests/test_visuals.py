@@ -9,6 +9,7 @@ mpl.use("Agg")
 
 import matplotlib.pyplot as plt
 
+from quantcredit.audits import Audit
 from quantcredit.splits import causal_split
 from quantcredit.visuals import plot_audit, plot_split, sapphire
 
@@ -26,7 +27,9 @@ class VisualTests(unittest.TestCase):
     self.assertEqual(mpl.rcParams["figure.facecolor"], before)
 
   def test_audit_figure_exposes_all_four_aggregate_questions(self) -> None:
-    figure = plot_audit(self._audit())
+    audit = self._audit()
+    figure = audit.plot()
+    self.assertEqual(len(plot_audit(audit).axes), 4)
 
     self.assertEqual(
       {axis.get_title() for axis in figure.axes},
@@ -54,7 +57,8 @@ class VisualTests(unittest.TestCase):
     periods = tuple(date(2025, month, 1) for month in range(1, 13))
     split = causal_split(periods)
 
-    figure = plot_split(split)
+    figure = split.plot()
+    self.assertEqual(len(plot_split(split).axes), 1)
     axis = figure.axes[0]
 
     self.assertEqual(axis.get_yticklabels()[0].get_text(), "Test")
@@ -65,14 +69,17 @@ class VisualTests(unittest.TestCase):
     self.assertEqual(axis.get_xlabel(), "2025 report period")
 
   @staticmethod
-  def _audit() -> dict[str, object]:
-    return {
-      "continuity": [
+  def _audit() -> Audit:
+    return Audit(
+      source={},
+      panel={},
+      fields={},
+      continuity=(
         {"report_period": "2025-01-31", "reported": 100},
         {"report_period": "2025-02-28", "reported": 94},
         {"report_period": "2025-03-31", "reported": 90},
-      ],
-      "states": {
+      ),
+      states={
         "delinquency:current": 250,
         "delinquency:1-29": 20,
         "delinquency:30-59": 8,
@@ -82,7 +89,7 @@ class VisualTests(unittest.TestCase):
         "zero_balance:4": 1,
         "zero_balance:1+99": 1,
       },
-      "transitions": {
+      transitions={
         "delinquency:current -> delinquency:current": 180,
         "delinquency:current -> delinquency:1-29": 12,
         "delinquency:1-29 -> delinquency:current": 8,
@@ -91,7 +98,7 @@ class VisualTests(unittest.TestCase):
         "delinquency:60-89 -> zero_balance:4": 1,
         "zero_balance:1+99 -> zero_balance:1+99": 1,
       },
-      "targets": [
+      targets=(
         {
           "status": "derived",
           "counts": {
@@ -102,9 +109,9 @@ class VisualTests(unittest.TestCase):
             "ineligible_at_cutoff": 20,
             "missing_followup": 0,
           },
-        }
-      ],
-    }
+        },
+      ),
+    )
 
 
 if __name__ == "__main__":
