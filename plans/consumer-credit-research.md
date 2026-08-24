@@ -431,11 +431,14 @@ Files appear only when their owner becomes necessary. The names above define
 responsibilities, not a requirement to create empty modules in Stage 1.
 
 The environment deliberately matches likely research tools: pandas for tables,
-scikit-learn for preprocessing and metrics, XGBoost for the shallow GBM,
+scikit-learn for preprocessing, metrics, and the portable shallow GBM,
 Matplotlib for deterministic figure ownership, and Seaborn for axes-level
-statistical vocabulary. `ipykernel` supports Zed's REPL. TinyMesh is added only
-when Stage 3 begins. The lockfile, not this specification, owns exact resolved
-package versions.
+statistical vocabulary. XGBoost remains a useful research comparison but is
+not a project dependency: the resolved 3.4.1 ARM macOS wheel requires a
+host-level OpenMP runtime outside the locked `uv` environment. `ipykernel`
+supports Zed's REPL.
+TinyMesh is added only when Stage 3 begins. The lockfile, not this specification,
+owns exact resolved package versions.
 
 ### Canonical notebook flow
 
@@ -596,10 +599,12 @@ The first possible temporal promotion questions are deliberately separate:
 - **D-12:** Keep `quantcredit` independently useful if the graph hypothesis
   fails. SEC semantics, temporal validation, classical modeling, calibration,
   and economic interpretation are primary project outcomes.
-- **D-13:** Practice with pandas, scikit-learn, XGBoost, Matplotlib, and Seaborn
-  rather than inventing table, metric, booster, or plotting layers. `quantcredit`
-  helpers compose these libraries around credit-specific invariants and remain
-  small enough to rewrite or explain during an analysis.
+- **D-13:** Practice with pandas, scikit-learn's classical gradient boosting,
+  Matplotlib, and Seaborn rather than inventing table, metric, booster, or
+  plotting layers. `quantcredit` helpers compose these libraries around
+  credit-specific invariants and remain small enough to rewrite or explain
+  during an analysis. XGBoost practice is separate because its resolved ARM
+  macOS wheel requires an unpinned host OpenMP runtime.
 - **D-14:** Pair each material research table with one canonical aggregate
   visual that reveals the pattern the table quantifies. Figures never become a
   second transformation owner and never retain consumer-level rows.
@@ -1032,6 +1037,59 @@ features, and additional fold/status labels remain valid inputs.
 **Next issue:** Fit train-only preprocessing and one shallow explainable GBM,
 select with validation only, and freeze ranking plus calibration diagnostics
 before opening the test fold.
+
+#### Issue 2.3: Select the shallow GBM on validation only
+
+**What and why:** Establish the smallest nonlinear incumbent without letting
+validation categories, medians, target prevalence, or the unopened test fold
+shape preprocessing or model choice.
+
+**Status:** Implemented in `2662dc6`; landed revision recorded after merge.
+
+**Decision:** `qc.fit(examples)` fits median numeric imputation, missingness
+indicators, and bounded one-hot categorical encoding on the train fold only.
+It compares depths 2, 3, and 4 for one deterministic 120-tree classical
+gradient-boosted classifier and selects the lowest validation log loss, with
+smaller depth breaking exact ties. Class weighting remains off because the
+output is an event probability whose calibration matters. AUROC, average
+precision, Brier score, score-band calibration, and transformed-feature impurity
+importance remain co-evidence rather than selection objectives.
+
+The implementation uses scikit-learn rather than XGBoost because the available
+ARM macOS XGBoost wheel failed before import without Homebrew `libomp`. A
+host-level runtime would make the locked environment incomplete; the classical
+additive-tree hypothesis does not require that operational dependency.
+
+**Real validation evidence:**
+
+- Depth 2 is frozen: log loss `0.04024`, average precision `0.3450`, AUROC
+  `0.8221`, and Brier score `0.00790` on 32,203 observations with 328 events.
+- The constant train-event-rate reference has log loss `0.05703` and Brier
+  score `0.01008`; the model improves both proper scores out of time.
+- Depths 3 and 4 raise AUROC to `0.8375` and `0.8388` while worsening log loss
+  to `0.04236` and `0.04279` and average precision to `0.2958` and `0.2884`.
+  This is the concrete reason AUROC does not select the production candidate.
+- The highest validation score band contains 217 of 328 events. Its observed
+  event rate is `6.74%` against a `5.24%` mean prediction, so calibration still
+  understates risk at the top of the ranking.
+- Impurity importance concentrates in next payment due, current LTV,
+  delinquency days, remaining term, and beginning balance. These are hypotheses
+  for error and stability analysis, not causal explanations.
+
+**Done when:**
+
+- Preprocessing learns medians, missing indicators, and categories from train
+  only; unseen validation categories remain valid inputs. **INV-4**
+- Validation log loss alone selects depth; exact ties prefer the shallower
+  candidate and all declared metrics remain visible. **AC-4**, **AC-9**
+- No function scores, transforms, or summarizes test feature values or targets.
+- `baseline.plot()` renders selection, ranking, calibration, and importance
+  evidence from validation aggregates only. **D-14**
+- Synthetic tests cover selection, train-only fitting, invalid folds, unknown
+  categories, non-mutation, and figure semantics.
+
+**Next issue:** Expose exactly one explicit test query for the frozen depth-2
+model and retain the resulting out-of-time evidence without reopening selection.
 
 ### Stage 3: Matched static GBM/GINE experiment
 

@@ -42,6 +42,10 @@ split.plot()
 examples = qc.examples(manifest, split)
 examples.groupby(["fold", "target_status"]).size()
 plot_examples(examples)
+
+baseline = qc.fit(examples)
+baseline.candidates
+baseline.plot()
 ```
 
 `quantcredit.visuals.plot_audit`, `plot_split`, and `plot_examples` remain
