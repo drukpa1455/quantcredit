@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from itertools import pairwise
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+  from matplotlib.figure import Figure
 
 
 @dataclass(frozen=True)
@@ -16,6 +20,12 @@ class CausalSplit:
   validation_labels_observed_through: date
   test_labels_observed_through: date
   horizon_reports: int
+
+  def plot(self) -> Figure:
+    """Render the canonical cutoff and label-maturity timeline."""
+    from quantcredit.visuals import plot_split
+
+    return plot_split(self)
 
   def summary(self) -> dict[str, str | int | list[str]]:
     return {
