@@ -950,7 +950,7 @@ parallel domain logic.
 per eligible loan and prediction cutoff before a model can hide eligibility,
 censoring, missingness, or leakage mistakes.
 
-**Status:** Implemented; landed revision recorded after merge.
+**Status:** Complete at implementation revision `8cb896f`.
 
 **Decision:** `qc.examples(manifest, split)` rebuilds directly from verified
 source bytes and returns a DataFrame. Ineligible cutoff states are absent;
