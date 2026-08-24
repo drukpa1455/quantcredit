@@ -2,32 +2,83 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
 import pandas as pd
 
-from quantcredit.baselines import fit_baseline
+from quantcredit.baselines import _compare, _metrics, fit_baseline
 from quantcredit.populations import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
 
 
 class BaselineTests(unittest.TestCase):
-  def test_fits_preprocessing_on_train_and_selects_validation_log_loss(self) -> None:
-    examples = self._examples()
-    before = examples.copy(deep=True)
+  def test_paired_uncertainty_can_prefer_a_simpler_near_best_model(self) -> None:
+    target = np.array([0, 0, 0, 0, 1, 1, 1, 1], dtype=np.int64)
+    simple = np.array(
+      [0.12249685, 0.15569417, 0.19820540, 0.12515548, 0.77369409, 0.83662826,
+       0.88639665, 0.87206416]
+    )
+    empirical_best = np.array([0.10, 0.20, 0.12, 0.15, 0.80, 0.90, 0.85, 0.88])
 
-    baseline = fit_baseline(examples, depths=(1, 2), n_estimators=20)
-    without_test = fit_baseline(
-      examples.loc[examples["fold"] != "test"], depths=(1, 2), n_estimators=20
+    candidates, selected = _compare(
+      target,
+      ((1, 0.05, 10), (3, 0.05, 20)),
+      [simple, empirical_best],
+      [_metrics(target, simple), _metrics(target, empirical_best)],
     )
 
-    selected = baseline.candidates.loc[baseline.candidates["log_loss"].idxmin()]
+    self.assertGreater(candidates.iloc[0]["log_loss_delta"], 0)
+    self.assertLessEqual(
+      candidates.iloc[0]["log_loss_delta"], candidates.iloc[0]["log_loss_delta_se"]
+    )
+    self.assertEqual(selected, 0)
+    self.assertTrue(candidates.iloc[0]["selected"])
+
+  def test_maps_the_grid_and_selects_the_simplest_near_best_candidate(self) -> None:
+    examples = self._examples()
+    before = examples.copy(deep=True)
+    depths = (1, 2)
+    learning_rates = (0.03, 0.07)
+    estimators = (10, 20)
+
+    baseline = fit_baseline(
+      examples, depths=depths, learning_rates=learning_rates, estimators=estimators
+    )
+    without_test = fit_baseline(
+      examples.loc[examples["fold"] != "test"],
+      depths=depths,
+      learning_rates=learning_rates,
+      estimators=estimators,
+    )
+
+    candidates = baseline.candidates
+    selected = candidates.loc[candidates["selected"]].iloc[0]
     self.assertEqual(baseline.selected_depth, selected["max_depth"])
+    self.assertEqual(baseline.selected_learning_rate, selected["learning_rate"])
+    self.assertEqual(baseline.selected_estimators, selected["n_estimators"])
+    self.assertEqual(
+      set(candidates[["max_depth", "learning_rate", "n_estimators"]].itertuples(index=False)),
+      {
+        (depth, rate, trees)
+        for depth in depths
+        for rate in learning_rates
+        for trees in estimators
+      },
+    )
+    near_best = candidates.loc[candidates["near_best"]]
+    simplest = near_best.sort_values(
+      ["leaf_budget", "max_depth", "n_estimators", "learning_rate"]
+    ).iloc[0]
+    self.assertEqual(selected["leaf_budget"], simplest["leaf_budget"])
+    empirical_best = candidates.loc[candidates["log_loss"].idxmin()]
+    self.assertAlmostEqual(empirical_best["log_loss_delta"], 0)
+    self.assertAlmostEqual(empirical_best["log_loss_delta_se"], 0)
     self.assertEqual(baseline.validation.samples, 40)
     self.assertEqual(baseline.validation.events, 5)
     self.assertGreater(baseline.reference.log_loss, baseline.validation.log_loss)
     self.assertEqual(int(baseline.calibration["samples"].sum()), 40)
     self.assertEqual(int(baseline.calibration["events"].sum()), 5)
-    self.assertEqual(len(baseline.candidates), 2)
+    self.assertEqual(len(candidates), 8)
     self.assertFalse(baseline.importance.empty)
-    pd.testing.assert_frame_equal(baseline.candidates, without_test.candidates)
+    pd.testing.assert_frame_equal(candidates, without_test.candidates)
     pd.testing.assert_frame_equal(baseline.calibration, without_test.calibration)
 
     imputer = baseline.preprocessor.named_transformers_["numeric"]
@@ -39,13 +90,29 @@ class BaselineTests(unittest.TestCase):
   def test_rejects_invalid_protocols(self) -> None:
     examples = self._examples()
     with self.assertRaisesRegex(ValueError, "missing required columns"):
-      fit_baseline(examples.drop(columns="credit_score"), n_estimators=5)
+      fit_baseline(
+        examples.drop(columns="credit_score"),
+        depths=(1,),
+        learning_rates=(0.05,),
+        estimators=(5,),
+      )
     with self.assertRaisesRegex(ValueError, "depths"):
-      fit_baseline(examples, depths=(), n_estimators=5)
+      fit_baseline(examples, depths=(), learning_rates=(0.05,), estimators=(5,))
+    with self.assertRaisesRegex(ValueError, "learning_rates"):
+      fit_baseline(examples, depths=(1,), learning_rates=(0.05, 0.05), estimators=(5,))
+    with self.assertRaisesRegex(ValueError, "estimators"):
+      fit_baseline(examples, depths=(1,), learning_rates=(0.05,), estimators=(0,))
+    with self.assertRaisesRegex(ValueError, "exceeds 256"):
+      fit_baseline(
+        examples,
+        depths=tuple(range(1, 18)),
+        learning_rates=(0.01, 0.02, 0.03, 0.04),
+        estimators=(1, 2, 3, 4),
+      )
 
     examples.loc[examples["fold"] == "validation", "target"] = 0
     with self.assertRaisesRegex(ValueError, "both target classes"):
-      fit_baseline(examples, n_estimators=5)
+      fit_baseline(examples, depths=(1,), learning_rates=(0.05,), estimators=(5,))
 
   @staticmethod
   def _examples() -> pd.DataFrame:

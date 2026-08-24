@@ -44,9 +44,14 @@ examples.groupby(["fold", "target_status"]).size()
 plot_examples(examples)
 
 baseline = qc.fit(examples)
-baseline.candidates
+baseline.candidates.sort_values("log_loss").head(10)
+baseline.surface()
 baseline.plot()
 ```
+
+The default baseline maps a declared 36-candidate validation surface. During a
+short assessment, narrow the same operation explicitly—for example,
+`qc.fit(examples, depths=(2, 3), learning_rates=(0.05,), estimators=(120,))`.
 
 `quantcredit.visuals.plot_audit`, `plot_split`, and `plot_examples` remain
 available when explicit functional composition is preferable.

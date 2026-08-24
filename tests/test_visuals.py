@@ -15,7 +15,14 @@ from quantcredit.audits import Audit
 from quantcredit.baselines import Baseline, Metrics
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
-from quantcredit.visuals import plot_audit, plot_baseline, plot_examples, plot_split, sapphire
+from quantcredit.visuals import (
+  plot_audit,
+  plot_baseline,
+  plot_examples,
+  plot_sensitivity,
+  plot_split,
+  sapphire,
+)
 
 
 class VisualTests(unittest.TestCase):
@@ -123,12 +130,18 @@ class VisualTests(unittest.TestCase):
       preprocessor=cast(Any, None),
       classifier=cast(Any, None),
       selected_depth=2,
+      selected_learning_rate=0.05,
+      selected_estimators=60,
       candidates=pd.DataFrame(
         {
-          "max_depth": [1, 2, 3],
-          "auroc": [0.68, 0.72, 0.70],
-          "average_precision": [0.08, 0.12, 0.10],
-          "log_loss": [0.09, 0.08, 0.085],
+          "max_depth": [1, 1, 1, 1, 2, 2, 2, 2],
+          "learning_rate": [0.02, 0.02, 0.05, 0.05] * 2,
+          "n_estimators": [60, 120, 60, 120] * 2,
+          "auroc": [0.68, 0.69, 0.70, 0.71, 0.70, 0.71, 0.72, 0.73],
+          "average_precision": [0.08, 0.09, 0.10, 0.11, 0.09, 0.10, 0.12, 0.11],
+          "log_loss": [0.095, 0.09, 0.088, 0.085, 0.087, 0.084, 0.08, 0.082],
+          "near_best": [False, False, False, False, False, True, True, True],
+          "selected": [False, False, False, False, False, False, True, False],
         }
       ),
       reference=Metrics(100, 10, 0.1, 0.5, 0.1, 0.12, 0.09),
@@ -152,13 +165,18 @@ class VisualTests(unittest.TestCase):
     self.assertEqual(
       {axis.get_title() for axis in figure.axes},
       {
-        "Selected depth 2 · lowest log loss",
-        "Validation ranking",
+        "Selected d2 · η 0.05 · 60 trees",
+        "Ranking-metric tradeoff",
         "Score-band calibration · Brier 0.0700",
-        "Selected model · impurity importance",
+        "Selected model · permutation importance",
       },
     )
     self.assertIn("validation only", figure.get_suptitle())
+
+    surface = plot_sensitivity(baseline)
+    self.assertEqual([axis.get_title() for axis in surface.axes], ["Depth 1", "Depth 2"])
+    self.assertIn("log-loss sensitivity", surface.get_suptitle())
+    self.assertTrue(any("★" in text.get_text() for text in surface.axes[1].texts))
 
   @staticmethod
   def _audit() -> Audit:
