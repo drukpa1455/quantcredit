@@ -16,7 +16,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
 from matplotlib.ticker import StrMethodFormatter
 
-from quantcredit.audit import Audit
+from quantcredit.audits import Audit
 from quantcredit.splits import CausalSplit
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.

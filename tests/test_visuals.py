@@ -9,7 +9,7 @@ mpl.use("Agg")
 
 import matplotlib.pyplot as plt
 
-from quantcredit.audit import Audit
+from quantcredit.audits import Audit
 from quantcredit.splits import causal_split
 from quantcredit.visuals import plot_audit, plot_split, sapphire
 

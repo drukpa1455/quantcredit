@@ -413,7 +413,7 @@ quantcredit/
     source.py                    source declaration + manifest checks
     acquire.py                   bounded SEC acquisition + checksum pinning
     panel.py                     schema facts, identity, state transitions
-    audit.py                     bounded aggregate audit command
+    audits.py                    bounded aggregate audit command
     targets.py                   explicit outcomes and censoring
     splits.py                    chronological populations and folds
     diagnostics.py               missingness, drift, leakage, calibration tables
@@ -792,7 +792,7 @@ semantic error.
 
 **Done when:**
 
-- The bounded `python -m quantcredit.audit` command emits only aggregate JSON
+- The bounded `python -m quantcredit.audits` command emits only aggregate JSON
   and fails rather than emitting partial evidence. **AC-1**, **INV-9**
 - The audit reports source coverage, identity continuity, missingness, each
   observed state transition, disappearance/reappearance, and immutable-field
@@ -809,7 +809,7 @@ semantic error.
 **How to verify:**
 
 - `uv run --locked python -m unittest tests.test_panel tests.test_targets`
-- `uv run --locked python -m quantcredit.audit`
+- `uv run --locked python -m quantcredit.audits`
 - Restart the Zed kernel and run notebook sections `00` through `04` in order.
 - `uv run --locked --group lint ruff check .`
 - `uv run --locked --group lint mypy`
@@ -930,8 +930,9 @@ value without remembering a second module-level verb.
 `quantcredit.split(...)` returns a `CausalSplit`; both expose `.plot()` as a
 small notebook affordance. The methods delegate to `plot_audit` and
 `plot_split`, which remain the single functional plotting owners. The short
-constructors directly alias the existing descriptive owners; they add no
-wrappers or parallel paths.
+constructors form a lazy package facade over the existing descriptive owners so
+importing `quantcredit` does not preload executable CLI modules; they add no
+parallel domain logic.
 
 **Done when:**
 
