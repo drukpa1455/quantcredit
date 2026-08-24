@@ -976,13 +976,17 @@ not a feature. `FEATURE_LINEAGE` owns the selected past-only inputs and
   event rate 0.840%.
 - Validation: 31,875 negatives, 328 positives, and 2,152 competing events;
   binary event rate 1.018%.
-- Test: 28,767 negatives, 319 positives, and 2,053 competing events; binary
-  event rate 1.097%.
+- At the original evidence revision, test contained 28,767 negatives, 319
+  positives, and 2,053 competing events; its 1.097% marginal event rate was
+  observed before model selection. Issue 2.4a therefore treats this fold as
+  unscored rather than fully blind and masks those outcomes in ordinary
+  materialization going forward.
 - No selected cutoff is right-censored by construction and no selected eligible
   row has missing follow-up in this panel.
-- Fold-level label counts are protocol evidence allowed before modeling; no test
-  predictions, feature-target associations, or performance metrics are queried
-  before the model and primary metric freeze.
+- Train and validation label counts remain pre-model protocol evidence. Test
+  predictions, feature-target associations, and performance metrics remain
+  unqueried, but the historically observed test marginal is disclosed rather
+  than mislabeled as unopened.
 - Payment-to-income is missing on 17,647 rows; employment and income
   verification are each missing on 16,839; numeric credit score is missing on
   1,644 because the source preserves `No Score` separately from absent values.
@@ -1160,6 +1164,43 @@ bounded; a timed analysis can pass narrower tuples without changing semantics.
 **Next issue:** Expose exactly one explicit test query for the sensitivity-
 selected frozen model and retain its out-of-time evidence without reopening
 selection.
+
+#### Issue 2.4a: Enforce the research phase boundaries
+
+**What and why:** The lens review found three representable contradictions: the
+ordinary population exposed test-label marginals before evaluation, `Baseline`
+stored the selected candidate in parallel fields, and a valid rejected target
+decision caused its audit observer to fail with `StopIteration`.
+
+**Status:** Implemented; landed revision recorded after merge.
+
+**Decision:** `qc.examples(...)` retains every eligible test row and its
+past-only features while emitting `target_status="held_out"` and a missing
+target. Eligibility is now a target-owned predicate of the cutoff state, so
+constructing the test population does not require deriving its future outcome.
+The historically observed September marginal cannot be made blind again; the
+fold remains a valid unscored out-of-time evaluation, while a future issuer or
+time slice is required for a genuinely sealed external claim.
+
+The selected row of `Baseline.candidates` is the sole owner of selected
+parameters and validation metrics. Convenience properties derive from that row,
+and construction rejects a classifier whose fitted parameters disagree. Audit
+plotting observes the named serious-delinquency decision whether derived or
+rejected and reports a domain error when that decision is absent.
+
+**Done when:**
+
+- Ordinary population tables and figures expose no test target or target
+  disposition; removing test rows still leaves model selection unchanged.
+- Cutoff eligibility is independently testable without future states.
+- A baseline cannot contain zero, multiple, or classifier-inconsistent selected
+  candidates, and all fluent observations derive from the selected row.
+- A rejected serious-delinquency decision renders aggregate counts rather than
+  raising an untyped iterator failure.
+
+**Next issue:** Add one explicit evaluation operation for the frozen selected
+model. Report the September result as out-of-time but marginally observed, and
+reserve blind-test language for a future untouched issuer or time slice.
 
 ### Stage 3: Matched static GBM/GINE experiment
 

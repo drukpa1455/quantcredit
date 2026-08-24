@@ -54,14 +54,76 @@ class Baseline:
 
   preprocessor: ColumnTransformer
   classifier: HistGradientBoostingClassifier
-  selected_depth: int
-  selected_learning_rate: float
-  selected_estimators: int
   candidates: DataFrame
   reference: Metrics
-  validation: Metrics
   calibration: DataFrame
   importance: DataFrame
+
+  def __post_init__(self) -> None:
+    selected = self.selected
+    fitted_parameters = self.classifier.get_params()
+    parameters = (
+      int(selected["max_depth"]),
+      float(selected["learning_rate"]),
+      int(selected["n_estimators"]),
+    )
+    fitted = (
+      fitted_parameters["max_depth"],
+      fitted_parameters["learning_rate"],
+      fitted_parameters["max_iter"],
+    )
+    if parameters != fitted:
+      raise ValueError("selected candidate does not match the fitted classifier")
+
+  @property
+  def selected(self) -> pd.Series[Any]:
+    """Return the one candidate that owns the frozen model decision."""
+    required = {
+      "max_depth",
+      "learning_rate",
+      "n_estimators",
+      "samples",
+      "events",
+      "event_rate",
+      "auroc",
+      "average_precision",
+      "log_loss",
+      "brier_score",
+      "selected",
+    }
+    missing = sorted(required - set(self.candidates.columns))
+    if missing:
+      raise ValueError(f"candidate evidence is missing columns: {', '.join(missing)}")
+    selected = self.candidates.loc[self.candidates["selected"]]
+    if len(selected) != 1:
+      raise ValueError("baseline requires exactly one selected candidate")
+    return selected.iloc[0]
+
+  @property
+  def selected_depth(self) -> int:
+    return int(self.selected["max_depth"])
+
+  @property
+  def selected_learning_rate(self) -> float:
+    return float(self.selected["learning_rate"])
+
+  @property
+  def selected_estimators(self) -> int:
+    return int(self.selected["n_estimators"])
+
+  @property
+  def validation(self) -> Metrics:
+    """Return validation metrics derived from the selected candidate."""
+    selected = self.selected
+    return Metrics(
+      samples=int(selected["samples"]),
+      events=int(selected["events"]),
+      event_rate=float(selected["event_rate"]),
+      auroc=float(selected["auroc"]),
+      average_precision=float(selected["average_precision"]),
+      log_loss=float(selected["log_loss"]),
+      brier_score=float(selected["brier_score"]),
+    )
 
   def plot(self) -> Figure:
     """Render aggregate validation diagnostics through the canonical visual owner."""
@@ -108,7 +170,6 @@ def fit_baseline(
   candidates, selected_index = _compare(validation_y, parameters, scores, metrics)
   selected = parameters[selected_index]
   selected_scores = scores[selected_index]
-  selected_metrics = metrics[selected_index]
   depth, learning_rate, n_estimators = selected
   classifier = _classifier(depth, learning_rate, n_estimators, seed)
   classifier.fit(transformed_train, train_y)
@@ -116,12 +177,8 @@ def fit_baseline(
   return Baseline(
     preprocessor=preprocessor,
     classifier=classifier,
-    selected_depth=depth,
-    selected_learning_rate=learning_rate,
-    selected_estimators=n_estimators,
     candidates=candidates,
     reference=_metrics(validation_y, reference_scores),
-    validation=selected_metrics,
     calibration=_calibration(validation_y, selected_scores),
     importance=_importance(
       preprocessor,

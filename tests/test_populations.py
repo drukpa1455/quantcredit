@@ -43,13 +43,15 @@ class PopulationTests(unittest.TestCase):
         ("train", "missing_followup"): 1,
         ("validation", "positive"): 1,
         ("validation", "negative"): 3,
-        ("test", "positive"): 1,
-        ("test", "negative"): 3,
+        ("test", "held_out"): 4,
       },
     )
     self.assertEqual(len(examples), 14)
     self.assertEqual(examples["target"].dtype, pd.Int8Dtype())
-    self.assertEqual(examples["target"].notna().sum(), 12)
+    self.assertEqual(examples["target"].notna().sum(), 8)
+    test = examples.loc[examples["fold"] == "test"]
+    self.assertTrue(test["target"].isna().all())
+    self.assertEqual(set(test["target_status"]), {"held_out"})
     self.assertEqual(set(FEATURE_COLUMNS), set(examples.columns[5:]))
     self.assertTrue(set(LEAKAGE_FIELDS).isdisjoint(examples.columns))
     unsafe = set(LEAKAGE_FIELDS) - {"reportingPeriodEndingDate"}
