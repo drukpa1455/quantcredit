@@ -91,10 +91,15 @@ plot_examples(examples)
 
 # %% 06 — Shallow GBM baseline
 # How well does the smallest explainable nonlinear model rank future events?
+baseline = qc.fit(examples)
+baseline.candidates
 
 
 # %% 07 — Calibration and error analysis
 # Do predicted probabilities match observed rates across time and cohorts?
+{"train_rate_reference": baseline.reference, "selected": baseline.validation}
+baseline.calibration
+baseline.plot()
 
 
 # %% 08 — Expected-loss interpretation

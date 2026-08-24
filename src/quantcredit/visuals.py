@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, timedelta
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import matplotlib as mpl
 import matplotlib.dates as mdates
@@ -21,6 +21,9 @@ from pandas.api.types import is_numeric_dtype
 from quantcredit.audits import Audit
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import CausalSplit
+
+if TYPE_CHECKING:
+  from quantcredit.baselines import Baseline
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
 _COLORS = {
@@ -237,6 +240,137 @@ def plot_examples(examples: DataFrame) -> Figure:
     _plot_missingness(axes[1, 0], missing_rows, folds)
     _plot_drift(axes[1, 1], drift_rows, folds)
     return figure
+
+
+def plot_baseline(baseline: Baseline) -> Figure:
+  """Show validation-only model selection, ranking, calibration, and importance."""
+  with sapphire():
+    figure, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
+    figure.suptitle("Shallow GBM · validation only", fontsize=16, fontweight="bold")
+    _plot_candidate_loss(axes[0, 0], baseline)
+    _plot_candidate_ranking(axes[0, 1], baseline)
+    _plot_calibration(axes[1, 0], baseline)
+    _plot_importance(axes[1, 1], baseline)
+    return figure
+
+
+def _plot_candidate_loss(axis: Any, baseline: Baseline) -> None:
+  candidates = baseline.candidates
+  labels = [f"depth {depth}" for depth in candidates["max_depth"]]
+  colors = [
+    _COLORS["accent"] if depth == baseline.selected_depth else _COLORS["cyan"]
+    for depth in candidates["max_depth"]
+  ]
+  bars = axis.bar(labels, candidates["log_loss"], color=colors, alpha=0.82)
+  axis.bar_label(bars, fmt="%.4f", padding=3, color=_COLORS["foreground"], fontsize=8)
+  axis.axhline(
+    baseline.reference.log_loss,
+    color=_COLORS["orange"],
+    linestyle="--",
+    linewidth=1.4,
+    label="Train-rate reference",
+  )
+  axis.set(
+    title=f"Selected depth {baseline.selected_depth} · lowest log loss",
+    xlabel="Candidate",
+    ylabel="Validation log loss · lower is better",
+    ylim=(0, max(float(candidates["log_loss"].max()), baseline.reference.log_loss) * 1.2),
+  )
+  axis.legend(fontsize=8)
+
+
+def _plot_candidate_ranking(axis: Any, baseline: Baseline) -> None:
+  candidates = baseline.candidates
+  positions = list(range(len(candidates)))
+  width = 0.34
+  auc = axis.bar(
+    [position - width / 2 for position in positions],
+    candidates["auroc"],
+    width,
+    label="AUROC",
+    color=_COLORS["cyan"],
+    alpha=0.82,
+  )
+  precision = axis.bar(
+    [position + width / 2 for position in positions],
+    candidates["average_precision"],
+    width,
+    label="Average precision",
+    color=_COLORS["pink"],
+    alpha=0.82,
+  )
+  axis.bar_label(auc, fmt="%.3f", padding=2, color=_COLORS["foreground"], fontsize=7)
+  axis.bar_label(precision, fmt="%.3f", padding=2, color=_COLORS["foreground"], fontsize=7)
+  axis.set(
+    title="Validation ranking",
+    xlabel="Candidate",
+    ylabel="Score",
+    xticks=positions,
+    xticklabels=[f"depth {depth}" for depth in candidates["max_depth"]],
+    ylim=(0, 1),
+  )
+  axis.legend(fontsize=8)
+
+
+def _plot_calibration(axis: Any, baseline: Baseline) -> None:
+  calibration = baseline.calibration
+  positions = list(range(len(calibration)))
+  width = 0.38
+  predicted = axis.bar(
+    [position - width / 2 for position in positions],
+    calibration["mean_score"],
+    width,
+    color=_COLORS["cyan"],
+    alpha=0.82,
+    label="Predicted",
+  )
+  observed = axis.bar(
+    [position + width / 2 for position in positions],
+    calibration["event_rate"],
+    width,
+    color=_COLORS["orange"],
+    alpha=0.82,
+    label="Observed",
+  )
+  axis.bar_label(
+    predicted,
+    labels=[f"{value:.1%}" for value in calibration["mean_score"]],
+    padding=2,
+    color=_COLORS["foreground"],
+    fontsize=6,
+    rotation=90,
+  )
+  axis.bar_label(
+    observed,
+    labels=[f"{value:.1%}" for value in calibration["event_rate"]],
+    padding=2,
+    color=_COLORS["foreground"],
+    fontsize=6,
+    rotation=90,
+  )
+  upper = max(float(calibration["event_rate"].max()), 0.01) * 1.32
+  axis.set(
+    title=f"Score-band calibration · Brier {baseline.validation.brier_score:.4f}",
+    xlabel="Validation score band · low to high risk",
+    ylabel="Event probability",
+    xticks=positions,
+    xticklabels=calibration["score_band"],
+    ylim=(0, upper),
+  )
+  axis.yaxis.set_major_formatter(PercentFormatter(1.0))
+  axis.legend(fontsize=8)
+
+
+def _plot_importance(axis: Any, baseline: Baseline) -> None:
+  importance = baseline.importance.head(12).iloc[::-1]
+  labels = [str(feature).replace("_", " ") for feature in importance["feature"]]
+  axis.barh(labels, importance["importance"], color=_COLORS["purple"], alpha=0.82)
+  axis.set(
+    title="Selected model · impurity importance",
+    xlabel="Normalized importance",
+    ylabel="Transformed feature",
+  )
+  axis.tick_params(axis="y", labelsize=7)
 
 
 def _ordered(values: Any, preferred: tuple[str, ...]) -> list[str]:

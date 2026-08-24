@@ -42,6 +42,19 @@ FEATURE_LINEAGE = {
   "payment_type": ("paymentTypeCode",),
 }
 FEATURE_COLUMNS = tuple(FEATURE_LINEAGE)
+CATEGORICAL_FEATURES = (
+  "credit_score_status",
+  "geography",
+  "vehicle_new_used",
+  "vehicle_type",
+  "credit_score_type",
+  "income_verification",
+  "employment_verification",
+  "payment_type",
+)
+NUMERIC_FEATURES = tuple(
+  feature for feature in FEATURE_COLUMNS if feature not in CATEGORICAL_FEATURES
+)
 LEAKAGE_FIELDS = {
   "assetNumber": "identity, not a predictive feature",
   "reportingPeriodBeginningDate": "time key",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from typing import Any, cast
 
 import matplotlib as mpl
 
@@ -11,9 +12,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from quantcredit.audits import Audit
+from quantcredit.baselines import Baseline, Metrics
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
-from quantcredit.visuals import plot_audit, plot_examples, plot_split, sapphire
+from quantcredit.visuals import plot_audit, plot_baseline, plot_examples, plot_split, sapphire
 
 
 class VisualTests(unittest.TestCase):
@@ -115,6 +117,48 @@ class VisualTests(unittest.TestCase):
     self.assertIsNotNone(legend)
     assert legend is not None
     self.assertIn("Manual Review", {text.get_text() for text in legend.texts})
+
+  def test_baseline_figure_exposes_validation_evidence(self) -> None:
+    baseline = Baseline(
+      preprocessor=cast(Any, None),
+      classifier=cast(Any, None),
+      selected_depth=2,
+      candidates=pd.DataFrame(
+        {
+          "max_depth": [1, 2, 3],
+          "auroc": [0.68, 0.72, 0.70],
+          "average_precision": [0.08, 0.12, 0.10],
+          "log_loss": [0.09, 0.08, 0.085],
+        }
+      ),
+      reference=Metrics(100, 10, 0.1, 0.5, 0.1, 0.12, 0.09),
+      validation=Metrics(100, 10, 0.1, 0.72, 0.12, 0.08, 0.07),
+      calibration=pd.DataFrame(
+        {
+          "score_band": [1, 2, 3],
+          "samples": [34, 33, 33],
+          "events": [1, 3, 6],
+          "mean_score": [0.03, 0.09, 0.18],
+          "event_rate": [0.03, 0.09, 0.18],
+        }
+      ),
+      importance=pd.DataFrame(
+        {"feature": ["credit_score", "current_ltv"], "importance": [0.7, 0.3]}
+      ),
+    )
+
+    figure = plot_baseline(baseline)
+
+    self.assertEqual(
+      {axis.get_title() for axis in figure.axes},
+      {
+        "Selected depth 2 · lowest log loss",
+        "Validation ranking",
+        "Score-band calibration · Brier 0.0700",
+        "Selected model · impurity importance",
+      },
+    )
+    self.assertIn("validation only", figure.get_suptitle())
 
   @staticmethod
   def _audit() -> Audit:
