@@ -1,4 +1,4 @@
-"""Sapphire figures for aggregate credit evidence and causal time."""
+"""Sapphire figures for aggregate credit evidence, causal time, and populations."""
 
 from __future__ import annotations
 
@@ -14,9 +14,12 @@ import seaborn as sns
 from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
-from matplotlib.ticker import StrMethodFormatter
+from matplotlib.ticker import PercentFormatter, ScalarFormatter, StrMethodFormatter
+from pandas import DataFrame
+from pandas.api.types import is_numeric_dtype
 
 from quantcredit.audits import Audit
+from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import CausalSplit
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
@@ -107,6 +110,28 @@ _STATE_COLOR = {
   "zero_balance:3": _COLORS["purple"],
   "zero_balance:4": _COLORS["negative"],
 }
+_FOLD_ORDER = ("train", "validation", "test")
+_STATUS_ORDER = (
+  "positive",
+  "negative",
+  "competing_event",
+  "missing_followup",
+  "right_censored",
+)
+_STATUS_LABEL = {
+  "positive": "Event",
+  "negative": "No event",
+  "competing_event": "Competing",
+  "missing_followup": "Missing follow-up",
+  "right_censored": "Right-censored",
+}
+_STATUS_COLOR = {
+  "positive": _COLORS["negative"],
+  "negative": _COLORS["cyan"],
+  "competing_event": _COLORS["orange"],
+  "missing_followup": _COLORS["yellow"],
+  "right_censored": _COLORS["purple"],
+}
 
 
 @contextmanager
@@ -187,6 +212,246 @@ def plot_split(split: CausalSplit) -> Figure:
     axis.xaxis.set_major_formatter(mdates.DateFormatter("%b"))  # type: ignore[no-untyped-call]
     axis.grid(axis="y", visible=False)
     return figure
+
+
+def plot_examples(examples: DataFrame) -> Figure:
+  """Show fold composition, event rate, missingness, and robust feature drift."""
+  required = {"fold", "target_status", "target", *FEATURE_COLUMNS}
+  missing = sorted(required - set(examples.columns))
+  if missing:
+    raise ValueError(f"examples are missing required columns: {', '.join(missing)}")
+  if examples.empty:
+    raise ValueError("examples must contain at least one eligible cutoff")
+
+  folds = _ordered(examples["fold"], _FOLD_ORDER)
+  if not folds or examples["target_status"].dropna().empty:
+    raise ValueError("examples require reported folds and target dispositions")
+  missing_rows = _missingness(examples, folds)
+  drift_rows = _drift(examples, folds)
+  height = max(9.0, 5.4 + 0.24 * max(len(missing_rows), len(drift_rows)))
+  with sapphire():
+    figure, axes = plt.subplots(2, 2, figsize=(15, height), constrained_layout=True)
+    figure.suptitle("Causal modeling population", fontsize=16, fontweight="bold")
+    _plot_fold_composition(axes[0, 0], examples, folds)
+    _plot_event_rate(axes[0, 1], examples, folds)
+    _plot_missingness(axes[1, 0], missing_rows, folds)
+    _plot_drift(axes[1, 1], drift_rows, folds)
+    return figure
+
+
+def _ordered(values: Any, preferred: tuple[str, ...]) -> list[str]:
+  observed = {str(value) for value in values.dropna().unique()}
+  return [value for value in preferred if value in observed] + sorted(observed - set(preferred))
+
+
+def _plot_fold_composition(axis: Any, examples: DataFrame, folds: list[str]) -> None:
+  statuses = _ordered(examples["target_status"], _STATUS_ORDER)
+  width = 0.8 / len(statuses)
+  centers = list(range(len(folds)))
+  maximum = 1
+  for status_index, status in enumerate(statuses):
+    counts = [
+      int(((examples["fold"] == fold) & (examples["target_status"] == status)).sum())
+      for fold in folds
+    ]
+    maximum = max(maximum, *counts)
+    offset = (status_index - (len(statuses) - 1) / 2) * width
+    bars = axis.bar(
+      [center + offset for center in centers],
+      counts,
+      width=width,
+      label=_STATUS_LABEL.get(status, status.replace("_", " ").title()),
+      color=_STATUS_COLOR.get(status, _COLORS["accent"]),
+      alpha=0.82,
+    )
+    axis.bar_label(
+      bars,
+      labels=[f"{count:,}" if count else "" for count in counts],
+      padding=2,
+      fontsize=7,
+      color=_COLORS["foreground"],
+    )
+  axis.set(
+    title="Fold outcome composition · log scale",
+    xlabel="Prediction fold",
+    ylabel="Eligible loan-cutoff rows",
+    xticks=centers,
+    xticklabels=[fold.title() for fold in folds],
+    yscale="log",
+    ylim=(0.8, maximum * 4),
+  )
+  count_formatter = ScalarFormatter()
+  count_formatter.set_scientific(False)
+  axis.yaxis.set_major_formatter(count_formatter)
+  axis.legend(ncols=2, fontsize=8)
+
+
+def _plot_event_rate(axis: Any, examples: DataFrame, folds: list[str]) -> None:
+  rates: list[float] = []
+  labels: list[str] = []
+  for fold in folds:
+    target = examples.loc[
+      (examples["fold"] == fold) & examples["target"].notna(), "target"
+    ]
+    if target.empty:
+      rates.append(float("nan"))
+      labels.append("no binary outcomes")
+      continue
+    events = int(target.sum())
+    rates.append(float(target.mean()))
+    labels.append(f"{events:,} / {len(target):,}")
+  positions = list(range(len(folds)))
+  axis.plot(
+    positions,
+    rates,
+    color=_COLORS["pink"],
+    linewidth=2.2,
+    marker="o",
+    markersize=7,
+  )
+  for position, rate, label in zip(positions, rates, labels, strict=True):
+    if rate == rate:
+      axis.annotate(
+        f"{rate:.2%}\n{label}",
+        (position, rate),
+        xytext=(0, 10),
+        textcoords="offset points",
+        ha="center",
+        color=_COLORS["foreground"],
+        fontsize=8,
+      )
+  observed = [rate for rate in rates if rate == rate]
+  upper = max(observed, default=0.01) * 1.4
+  axis.set(
+    title="Binary event-rate drift",
+    xlabel="Prediction fold",
+    ylabel="Observed event rate",
+    xticks=positions,
+    xticklabels=[fold.title() for fold in folds],
+    ylim=(0, upper),
+  )
+  axis.yaxis.set_major_formatter(PercentFormatter(1.0))
+
+
+def _missingness(examples: DataFrame, folds: list[str]) -> list[tuple[str, list[float]]]:
+  rows = []
+  for feature in FEATURE_COLUMNS:
+    rates = [
+      float(examples.loc[examples["fold"] == fold, feature].isna().mean()) for fold in folds
+    ]
+    if any(rate > 0 for rate in rates):
+      rows.append((feature, rates))
+  return sorted(rows, key=lambda row: max(row[1]), reverse=True)
+
+
+def _plot_missingness(
+  axis: Any,
+  rows: list[tuple[str, list[float]]],
+  folds: list[str],
+) -> None:
+  if not rows:
+    _empty_axis(axis, "Feature missingness by fold", "No selected feature is missing")
+    return
+  values = [rates for _, rates in rows]
+  annotations = [
+    ["<0.1%" if 0 < rate < 0.001 else f"{rate:.1%}" for rate in rates]
+    for rates in values
+  ]
+  colors = LinearSegmentedColormap.from_list(
+    "sapphire-missingness", (_COLORS["deep"], _COLORS["orange"])
+  )
+  sns.heatmap(
+    values,
+    ax=axis,
+    annot=annotations,
+    fmt="",
+    cmap=colors,
+    vmin=0,
+    vmax=max(max(rates) for rates in values),
+    cbar=False,
+    linewidths=0.5,
+    linecolor=_COLORS["border"],
+    xticklabels=[fold.title() for fold in folds],
+    yticklabels=[feature.replace("_", " ").title() for feature, _ in rows],
+    annot_kws={"fontsize": 8},
+  )
+  axis.set(title="Feature missingness by fold", xlabel="Prediction fold", ylabel="Feature")
+  axis.tick_params(axis="x", labelrotation=0)
+  axis.tick_params(axis="y", labelrotation=0, labelsize=8)
+
+
+def _drift(examples: DataFrame, folds: list[str]) -> list[tuple[str, list[float]]]:
+  baseline = "train" if "train" in folds else folds[0]
+  rows = []
+  for feature in FEATURE_COLUMNS:
+    if not is_numeric_dtype(examples[feature].dtype):
+      continue
+    train = examples.loc[examples["fold"] == baseline, feature].dropna()
+    if train.empty:
+      continue
+    scale = float(train.quantile(0.75) - train.quantile(0.25))
+    if scale <= 0:
+      continue
+    center = float(train.median())
+    shifts = []
+    for fold in folds:
+      observed = examples.loc[examples["fold"] == fold, feature].dropna()
+      shifts.append(float("nan") if observed.empty else (float(observed.median()) - center) / scale)
+    rows.append((feature, shifts))
+  return sorted(
+    rows,
+    key=lambda row: max((abs(value) for value in row[1] if value == value), default=0),
+    reverse=True,
+  )
+
+
+def _plot_drift(
+  axis: Any,
+  rows: list[tuple[str, list[float]]],
+  folds: list[str],
+) -> None:
+  baseline = "train" if "train" in folds else folds[0]
+  if not rows:
+    _empty_axis(axis, "Robust numeric drift", "No varying numeric feature is available")
+    return
+  values = [shifts for _, shifts in rows]
+  observed = [abs(value) for shifts in values for value in shifts if value == value]
+  limit = max(0.1, max(observed, default=0.1))
+  annotations = [
+    ["" if value != value else f"{value:+.2f}" for value in shifts] for shifts in values
+  ]
+  colors = LinearSegmentedColormap.from_list(
+    "sapphire-drift", (_COLORS["pink"], _COLORS["surface"], _COLORS["cyan"])
+  )
+  sns.heatmap(
+    values,
+    ax=axis,
+    annot=annotations,
+    fmt="",
+    cmap=colors,
+    center=0,
+    vmin=-limit,
+    vmax=limit,
+    cbar=False,
+    linewidths=0.5,
+    linecolor=_COLORS["border"],
+    xticklabels=[fold.title() for fold in folds],
+    yticklabels=[feature.replace("_", " ").title() for feature, _ in rows],
+    annot_kws={"fontsize": 8},
+  )
+  axis.set(
+    title=f"Median shift · {baseline} IQR units",
+    xlabel="Prediction fold",
+    ylabel="Numeric feature",
+  )
+  axis.tick_params(axis="x", labelrotation=0)
+  axis.tick_params(axis="y", labelrotation=0, labelsize=8)
+
+
+def _empty_axis(axis: Any, title: str, message: str) -> None:
+  axis.set_title(title)
+  axis.text(0.5, 0.5, message, ha="center", va="center", transform=axis.transAxes)
+  axis.set_axis_off()
 
 
 def _plot_population(axis: Any, audit: Audit) -> None:

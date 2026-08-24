@@ -8,6 +8,7 @@ from platform import python_version
 import quantcredit as qc
 from quantcredit.populations import FEATURE_LINEAGE, LEAKAGE_FIELDS
 from quantcredit.source import load_manifest
+from quantcredit.visuals import plot_examples
 
 ROOT = Path.cwd()
 if not (ROOT / "pyproject.toml").is_file():
@@ -81,6 +82,11 @@ missing = examples[list(FEATURE_LINEAGE)].isna().sum().sort_values(ascending=Fal
 # %% 05c — Feature boundary
 # Which past-only fields enter the baseline, and which outcome fields stay out?
 {"features": FEATURE_LINEAGE, "excluded_as_leakage": LEAKAGE_FIELDS}
+
+
+# %% 05d — Population diagnostics
+# What imbalance, missingness, and temporal drift should shape the baseline?
+plot_examples(examples)
 
 
 # %% 06 — Shallow GBM baseline

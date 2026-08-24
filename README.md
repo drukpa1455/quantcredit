@@ -30,6 +30,7 @@ The notebook API keeps the common path on the research values themselves:
 ```python
 import quantcredit as qc
 from quantcredit.source import load_manifest
+from quantcredit.visuals import plot_examples
 
 manifest = load_manifest()
 audit = qc.audit(manifest)
@@ -40,10 +41,11 @@ split.plot()
 
 examples = qc.examples(manifest, split)
 examples.groupby(["fold", "target_status"]).size()
+plot_examples(examples)
 ```
 
-`quantcredit.visuals.plot_audit` and `plot_split` remain available when explicit
-functional composition is preferable.
+`quantcredit.visuals.plot_audit`, `plot_split`, and `plot_examples` remain
+available when explicit functional composition is preferable.
 
 To acquire and checksum-pin the declared EX-102 files, provide the identifying
 user agent required by SEC access policy without storing it in the repository:
