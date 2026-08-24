@@ -174,8 +174,8 @@ and portfolio research are first-class outcomes even if no graph model wins.
 typed streaming snapshots, identity and continuity validation, an aggregate-only
 transition audit, one explicit three-report target, and executable notebook
 sections `00` through `05`, including a label-maturity-aware chronological
-split. It does not yet materialize the modeling population or provide the
-classical credit-analysis toolkit. TinyMesh can
+split and Sapphire aggregate figures. It does not yet materialize the modeling
+population or provide the classical credit-analysis toolkit. TinyMesh can
 express a homogeneous edge-aware loan graph and a fixed-node monthly segment
 graph, but there is no evidence that either adds useful information beyond a
 tabular model. Adding relational or dynamic-temporal APIs now would violate
@@ -431,10 +431,11 @@ Files appear only when their owner becomes necessary. The names above define
 responsibilities, not a requirement to create empty modules in Stage 1.
 
 The environment deliberately matches likely interview tools: pandas for tables,
-scikit-learn for preprocessing and metrics, XGBoost for the shallow GBM, and
-Matplotlib for direct plots. `ipykernel` supports Zed's REPL. TinyMesh is added
-only when Stage 3 begins. The lockfile, not this specification, owns exact
-resolved package versions.
+scikit-learn for preprocessing and metrics, XGBoost for the shallow GBM,
+Matplotlib for deterministic figure ownership, and Seaborn for axes-level
+statistical vocabulary. `ipykernel` supports Zed's REPL. TinyMesh is added only
+when Stage 3 begins. The lockfile, not this specification, owns exact resolved
+package versions.
 
 ### Canonical notebook flow
 
@@ -595,8 +596,8 @@ The first possible temporal promotion questions are deliberately separate:
 - **D-12:** Keep `quantcredit` independently useful if the graph hypothesis
   fails. SEC semantics, temporal validation, classical modeling, calibration,
   and economic interpretation are primary project outcomes.
-- **D-13:** Practice with pandas, scikit-learn, XGBoost, and Matplotlib rather
-  than inventing table, metric, booster, or plotting layers. `quantcredit`
+- **D-13:** Practice with pandas, scikit-learn, XGBoost, Matplotlib, and Seaborn
+  rather than inventing table, metric, booster, or plotting layers. `quantcredit`
   helpers compose these libraries around credit-specific invariants and remain
   small enough to rewrite or explain during an assessment.
 
@@ -890,6 +891,32 @@ cutoff whose full horizon ends before validation.
 - Restart the Zed kernel and run notebook sections `00` through `05` in order.
 - `uv run --locked --group lint ruff check .`
 - `uv run --locked --group lint mypy`
+
+#### Issue 2.1a: Make aggregate evidence visually inspectable
+
+**What and why:** Render the semantic audit and causal split as deterministic
+figures so rare states, transitions, censoring, and label maturity are visible
+before modeling compresses them into metrics.
+
+**Status:** Complete at implementation revision `474ec40`.
+
+**Decision:** Matplotlib owns canonical figures and static export; Seaborn is an
+axes-level statistical companion. Plotly and Bokeh remain absent until a
+specific browser interaction or linked-selection contract earns their runtime
+and export complexity. The scoped Sapphire theme snapshots selected visual
+tokens inspected from Reia revision
+`0ad104c8bfbf7a08232ca45fefea8509e22d9fce`; `quantcredit` never imports Reia.
+
+**Done when:**
+
+- `plot_audit(audit)` shows reported population, state prevalence, row-normalized
+  transitions, and target disposition from aggregate values only. **INV-9**
+- `plot_split(split)` distinguishes feature cutoffs from label maturity for all
+  three folds. **INV-4**
+- `sapphire()` scopes Matplotlib state and restores the caller's prior theme.
+- Notebook sections `04a` and `05a` call the same tested visual owners.
+- Tests verify figure semantics, scales, lanes, and theme cleanup; full-resolution
+  synthetic and real aggregate renders receive visual inspection.
 
 **Next issue:** Materialize only eligible loan-cutoff examples at these dates,
 declare past-only features and excluded leakage fields, and report fold-level
