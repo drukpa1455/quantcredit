@@ -17,8 +17,8 @@ class SourceManifestTests(unittest.TestCase):
 
     self.assertEqual(manifest.cik, "0002014176")
     self.assertEqual(len(manifest.filings), 12)
-    self.assertEqual(manifest.filings[0].report_period.isoformat(), "2025-01-31")
-    self.assertEqual(manifest.filings[-1].report_period.isoformat(), "2025-12-31")
+    self.assertEqual(manifest.report_periods[0].isoformat(), "2025-01-31")
+    self.assertEqual(manifest.report_periods[-1].isoformat(), "2025-12-31")
     self.assertEqual(manifest.summary()["pinned_ex102_documents"], 12)
     self.assertEqual(manifest.access_policy.maximum_requests_per_second, 10)
 
