@@ -41,6 +41,14 @@ class VisualTests(unittest.TestCase):
     self.assertEqual(figure.axes[3].get_xscale(), "log")
     self.assertEqual(len(figure.axes[0].lines), 1)
     self.assertGreater(len(figure.axes[2].texts), 0)
+    self.assertIn(
+      "Zero balance 1+99",
+      {tick.get_text() for tick in figure.axes[1].get_yticklabels()},
+    )
+    self.assertIn(
+      "Zero balance 1+99",
+      {tick.get_text() for tick in figure.axes[2].get_xticklabels()},
+    )
 
   def test_split_figure_preserves_cutoffs_and_maturity(self) -> None:
     periods = tuple(date(2025, month, 1) for month in range(1, 13))
@@ -72,6 +80,7 @@ class VisualTests(unittest.TestCase):
         "delinquency:90+": 2,
         "zero_balance:1": 10,
         "zero_balance:4": 1,
+        "zero_balance:1+99": 1,
       },
       "transitions": {
         "delinquency:current -> delinquency:current": 180,
@@ -80,6 +89,7 @@ class VisualTests(unittest.TestCase):
         "delinquency:1-29 -> delinquency:30-59": 4,
         "delinquency:30-59 -> delinquency:60-89": 2,
         "delinquency:60-89 -> zero_balance:4": 1,
+        "zero_balance:1+99 -> zero_balance:1+99": 1,
       },
       "targets": [
         {
