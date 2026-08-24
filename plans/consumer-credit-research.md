@@ -898,7 +898,7 @@ cutoff whose full horizon ends before validation.
 figures so rare states, transitions, censoring, and label maturity are visible
 before modeling compresses them into metrics.
 
-**Status:** Complete at implementation revision `42d77c9`.
+**Status:** Complete at implementation revision `474ec40`.
 
 **Decision:** Matplotlib owns canonical figures and static export; Seaborn is an
 axes-level statistical companion. Plotly and Bokeh remain absent until a
