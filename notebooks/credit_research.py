@@ -92,7 +92,8 @@ plot_examples(examples)
 # %% 06 — Shallow GBM baseline
 # How well does the smallest explainable nonlinear model rank future events?
 baseline = qc.fit(examples)
-baseline.candidates
+baseline.candidates.sort_values("log_loss").head(10)
+baseline.surface()
 
 
 # %% 07 — Calibration and error analysis
