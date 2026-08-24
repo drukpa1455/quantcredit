@@ -1,15 +1,34 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date
 from decimal import Decimal
 
-from quantcredit.panel import ZeroBalanceCode
-from quantcredit.targets import LoanState, TargetResult, serious_delinquency_target
+from quantcredit.panel import AssetKey, LoanSnapshot, SnapshotKey, SourceField, ZeroBalanceCode
+from quantcredit.targets import LoanState, TargetResult, loan_state, serious_delinquency_target
 
 CURRENT = LoanState(0)
 
 
 class TargetTests(unittest.TestCase):
+  def test_derives_state_from_one_snapshot(self) -> None:
+    snapshot = LoanSnapshot(
+      SnapshotKey(AssetKey("0000000000", "PRIVATE"), date(2025, 1, 31)),
+      "accession",
+      "auto",
+      date(2025, 1, 1),
+      (
+        SourceField("currentDelinquencyStatus", ("60",)),
+        SourceField("zeroBalanceCode", ("4",)),
+        SourceField("chargedoffPrincipalAmount", ("100",)),
+      ),
+    )
+
+    self.assertEqual(
+      loan_state(snapshot),
+      LoanState(60, (ZeroBalanceCode.CHARGED_OFF,), Decimal("100"), None),
+    )
+
   def test_classifies_event_negative_competing_and_censoring(self) -> None:
     cases = (
       ([CURRENT, LoanState(60), CURRENT, CURRENT], 0, TargetResult.POSITIVE),
