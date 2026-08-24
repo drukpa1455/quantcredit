@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 import numpy as np
 import pandas as pd
@@ -86,6 +87,19 @@ class BaselineTests(unittest.TestCase):
     train_median = examples.loc[examples["fold"] == "train", "credit_score"].median()
     self.assertEqual(imputer.statistics_[credit_score_index], train_median)
     pd.testing.assert_frame_equal(examples, before)
+
+    no_selection = candidates.assign(selected=False)
+    with self.assertRaisesRegex(ValueError, "exactly one selected"):
+      replace(baseline, candidates=no_selection)
+
+    wrong_classifier = fit_baseline(
+      examples,
+      depths=(1,),
+      learning_rates=(0.03,),
+      estimators=(10,),
+    ).classifier
+    with self.assertRaisesRegex(ValueError, "does not match"):
+      replace(baseline, classifier=wrong_classifier)
 
   def test_rejects_invalid_protocols(self) -> None:
     examples = self._examples()

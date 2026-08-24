@@ -5,7 +5,13 @@ from datetime import date
 from decimal import Decimal
 
 from quantcredit.panel import AssetKey, LoanSnapshot, SnapshotKey, SourceField, ZeroBalanceCode
-from quantcredit.targets import LoanState, TargetResult, loan_state, serious_delinquency_target
+from quantcredit.targets import (
+  LoanState,
+  TargetResult,
+  eligible_at_cutoff,
+  loan_state,
+  serious_delinquency_target,
+)
 
 CURRENT = LoanState(0)
 
@@ -62,6 +68,16 @@ class TargetTests(unittest.TestCase):
         self.assertEqual(
           serious_delinquency_target(history, cutoff, horizon_reports=3), expected
         )
+
+  def test_cutoff_eligibility_depends_only_on_the_observed_state(self) -> None:
+    self.assertTrue(eligible_at_cutoff(CURRENT))
+    self.assertFalse(eligible_at_cutoff(None))
+    self.assertFalse(eligible_at_cutoff(LoanState(None)))
+    self.assertFalse(eligible_at_cutoff(LoanState(60)))
+    self.assertFalse(
+      eligible_at_cutoff(LoanState(0, (ZeroBalanceCode.PREPAID_OR_MATURED,)))
+    )
+    self.assertFalse(eligible_at_cutoff(LoanState(0, charged_off_principal=Decimal("1"))))
 
   def test_rejects_nonpositive_horizon(self) -> None:
     with self.assertRaisesRegex(ValueError, "horizon"):

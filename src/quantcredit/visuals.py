@@ -122,6 +122,7 @@ _STATUS_ORDER = (
   "competing_event",
   "missing_followup",
   "right_censored",
+  "held_out",
 )
 _STATUS_LABEL = {
   "positive": "Event",
@@ -129,6 +130,7 @@ _STATUS_LABEL = {
   "competing_event": "Competing",
   "missing_followup": "Missing follow-up",
   "right_censored": "Right-censored",
+  "held_out": "Held out",
 }
 _STATUS_COLOR = {
   "positive": _COLORS["negative"],
@@ -136,6 +138,7 @@ _STATUS_COLOR = {
   "competing_event": _COLORS["orange"],
   "missing_followup": _COLORS["yellow"],
   "right_censored": _COLORS["purple"],
+  "held_out": _COLORS["muted"],
 }
 
 
@@ -500,7 +503,7 @@ def _plot_fold_composition(axis: Any, examples: DataFrame, folds: list[str]) -> 
     xticks=centers,
     xticklabels=[fold.title() for fold in folds],
     yscale="log",
-    ylim=(0.8, maximum * 4),
+    ylim=(0.8, maximum * 10),
   )
   count_formatter = ScalarFormatter()
   count_formatter.set_scientific(False)
@@ -517,7 +520,8 @@ def _plot_event_rate(axis: Any, examples: DataFrame, folds: list[str]) -> None:
     ]
     if target.empty:
       rates.append(float("nan"))
-      labels.append("no binary outcomes")
+      statuses = examples.loc[examples["fold"] == fold, "target_status"]
+      labels.append("Held out" if set(statuses) == {"held_out"} else "No binary outcomes")
       continue
     events = int(target.sum())
     rates.append(float(target.mean()))
@@ -540,6 +544,16 @@ def _plot_event_rate(axis: Any, examples: DataFrame, folds: list[str]) -> None:
         textcoords="offset points",
         ha="center",
         color=_COLORS["foreground"],
+        fontsize=8,
+      )
+    else:
+      axis.annotate(
+        label,
+        (position, 0),
+        xytext=(0, 10),
+        textcoords="offset points",
+        ha="center",
+        color=_COLORS["muted"],
         fontsize=8,
       )
   observed = [rate for rate in rates if rate == rate]
@@ -801,7 +815,16 @@ def _plot_transitions(axis: Any, audit: Audit) -> None:
 
 def _plot_targets(axis: Any, audit: Audit) -> None:
   targets = audit.targets
-  decision = next(target for target in targets if target["status"] == "derived")
+  decision = next(
+    (
+      target
+      for target in targets
+      if target.get("name") == "serious_delinquency_or_chargeoff"
+    ),
+    None,
+  )
+  if decision is None:
+    raise ValueError("audit is missing the serious-delinquency target decision")
   counts = cast(dict[str, int], decision["counts"])
   categories = (
     ("positive", "Event", _COLORS["negative"]),
@@ -826,13 +849,17 @@ def _plot_targets(axis: Any, audit: Audit) -> None:
       color=_COLORS["foreground"],
       fontsize=8,
     )
+  status = str(decision["status"])
+  title = "Three-report target disposition · log scale"
+  if status != "derived":
+    title += f" · {status.replace('_', ' ')}"
   axis.set(
-    title="Three-report target disposition · log scale",
+    title=title,
     xlabel="Loan-cutoff positions",
     yticks=positions,
     yticklabels=[label for _, label, _ in categories],
     xscale="log",
-    xlim=(0.7, max(values) * 8),
+    xlim=(0.7, max(max(values), 1) * 8),
   )
   axis.invert_yaxis()
   axis.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))

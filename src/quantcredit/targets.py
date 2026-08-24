@@ -49,6 +49,17 @@ def loan_state(snapshot: LoanSnapshot) -> LoanState:
   )
 
 
+def eligible_at_cutoff(state: LoanState | None) -> bool:
+  """Return whether one observed state can begin a prediction horizon."""
+  return bool(
+    state is not None
+    and not state.terminal
+    and state.delinquency_days is not None
+    and state.delinquency_days < 60
+    and not state.charged_off
+  )
+
+
 def serious_delinquency_target(
   history: Sequence[LoanState | None],
   cutoff: int,
@@ -61,13 +72,7 @@ def serious_delinquency_target(
   if cutoff < 0 or cutoff >= len(history):
     raise ValueError("target cutoff is outside the loan history")
   state = history[cutoff]
-  if (
-    state is None
-    or state.terminal
-    or state.delinquency_days is None
-    or state.delinquency_days >= 60
-    or state.charged_off
-  ):
+  if not eligible_at_cutoff(state):
     return TargetResult.INELIGIBLE
   if cutoff + horizon_reports >= len(history):
     return TargetResult.RIGHT_CENSORED

@@ -68,7 +68,7 @@ split.plot()
 
 
 # %% 05b — Modeling population
-# Which eligible loan-cutoff positions remain observable in each fold?
+# Which eligible positions are visible without realizing held-out test outcomes?
 examples = qc.examples(manifest, split)
 population = examples.groupby(["fold", "target_status"], observed=True).size().unstack(
   fill_value=0

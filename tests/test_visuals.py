@@ -10,6 +10,7 @@ mpl.use("Agg")
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.ensemble import HistGradientBoostingClassifier
 
 from quantcredit.audits import Audit
 from quantcredit.baselines import Baseline, Metrics
@@ -101,6 +102,7 @@ class VisualTests(unittest.TestCase):
     )
     self.assertGreater(len(figure.axes[3].get_yticklabels()), 0)
     self.assertGreaterEqual(figure.get_size_inches()[1], 9)
+    self.assertIn("Held out", {text.get_text() for text in figure.axes[1].texts})
     pd.testing.assert_frame_equal(examples, before)
 
   def test_example_figure_rejects_an_incomplete_frame(self) -> None:
@@ -128,10 +130,11 @@ class VisualTests(unittest.TestCase):
   def test_baseline_figure_exposes_validation_evidence(self) -> None:
     baseline = Baseline(
       preprocessor=cast(Any, None),
-      classifier=cast(Any, None),
-      selected_depth=2,
-      selected_learning_rate=0.05,
-      selected_estimators=60,
+      classifier=HistGradientBoostingClassifier(
+        max_depth=2,
+        learning_rate=0.05,
+        max_iter=60,
+      ),
       candidates=pd.DataFrame(
         {
           "max_depth": [1, 1, 1, 1, 2, 2, 2, 2],
@@ -140,12 +143,15 @@ class VisualTests(unittest.TestCase):
           "auroc": [0.68, 0.69, 0.70, 0.71, 0.70, 0.71, 0.72, 0.73],
           "average_precision": [0.08, 0.09, 0.10, 0.11, 0.09, 0.10, 0.12, 0.11],
           "log_loss": [0.095, 0.09, 0.088, 0.085, 0.087, 0.084, 0.08, 0.082],
+          "samples": [100] * 8,
+          "events": [10] * 8,
+          "event_rate": [0.1] * 8,
+          "brier_score": [0.07] * 8,
           "near_best": [False, False, False, False, False, True, True, True],
           "selected": [False, False, False, False, False, False, True, False],
         }
       ),
       reference=Metrics(100, 10, 0.1, 0.5, 0.1, 0.12, 0.09),
-      validation=Metrics(100, 10, 0.1, 0.72, 0.12, 0.08, 0.07),
       calibration=pd.DataFrame(
         {
           "score_band": [1, 2, 3],
@@ -177,6 +183,35 @@ class VisualTests(unittest.TestCase):
     self.assertEqual([axis.get_title() for axis in surface.axes], ["Depth 1", "Depth 2"])
     self.assertIn("log-loss sensitivity", surface.get_suptitle())
     self.assertTrue(any("★" in text.get_text() for text in surface.axes[1].texts))
+
+  def test_audit_figure_renders_a_rejected_target_decision(self) -> None:
+    audit = self._audit()
+    rejected = {
+      **audit.targets[0],
+      "status": "rejected",
+      "counts": {
+        "positive": 0,
+        "negative": 1,
+        "competing_event": 0,
+        "right_censored": 0,
+        "ineligible_at_cutoff": 0,
+        "missing_followup": 0,
+      },
+    }
+
+    figure = plot_audit(
+      Audit(
+        source=audit.source,
+        panel=audit.panel,
+        fields=audit.fields,
+        continuity=audit.continuity,
+        states=audit.states,
+        transitions=audit.transitions,
+        targets=(rejected,),
+      )
+    )
+
+    self.assertIn("rejected", figure.axes[3].get_title())
 
   @staticmethod
   def _audit() -> Audit:
@@ -210,6 +245,7 @@ class VisualTests(unittest.TestCase):
       },
       targets=(
         {
+          "name": "serious_delinquency_or_chargeoff",
           "status": "derived",
           "counts": {
             "positive": 12,
@@ -238,7 +274,11 @@ class VisualTests(unittest.TestCase):
     rows = []
     for fold_index, fold in enumerate(("train", "validation", "test")):
       for row_index in range(4):
-        status = ("positive", "negative", "negative", "competing_event")[row_index]
+        status = (
+          "held_out"
+          if fold == "test"
+          else ("positive", "negative", "negative", "competing_event")[row_index]
+        )
         row: dict[str, object] = {
           "fold": fold,
           "target_status": status,
