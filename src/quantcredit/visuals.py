@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, timedelta
+from math import ceil
 from typing import TYPE_CHECKING, Any, cast
 
 import matplotlib as mpl
@@ -14,6 +15,7 @@ import seaborn as sns
 from cycler import cycler
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
+from matplotlib.patches import Rectangle
 from matplotlib.ticker import PercentFormatter, ScalarFormatter, StrMethodFormatter
 from pandas import DataFrame
 from pandas.api.types import is_numeric_dtype
@@ -254,14 +256,99 @@ def plot_baseline(baseline: Baseline) -> Figure:
     return figure
 
 
+def plot_sensitivity(baseline: Baseline) -> Figure:
+  """Show the common-scale validation log-loss surface for every declared depth."""
+  depths = sorted(int(depth) for depth in baseline.candidates["max_depth"].unique())
+  columns = min(2, len(depths))
+  rows = ceil(len(depths) / columns)
+  with sapphire():
+    figure, axes = plt.subplots(
+      rows,
+      columns,
+      figsize=(7 * columns, 4.8 * rows),
+      constrained_layout=True,
+      squeeze=False,
+    )
+    figure.suptitle(
+      "Validation log-loss sensitivity · outline near-best · ★ selected",
+      fontsize=16,
+      fontweight="bold",
+    )
+    limits = (
+      float(baseline.candidates["log_loss"].min()),
+      float(baseline.candidates["log_loss"].max()),
+    )
+    colors = LinearSegmentedColormap.from_list(
+      "sapphire-loss", (_COLORS["accent"], _COLORS["surface"], _COLORS["pink"])
+    )
+    for axis, depth in zip(axes.flat, depths, strict=False):
+      _plot_sensitivity_depth(axis, baseline.candidates, depth, colors, limits)
+    for axis in list(axes.flat)[len(depths) :]:
+      axis.set_axis_off()
+    return figure
+
+
+def _plot_sensitivity_depth(
+  axis: Any,
+  candidates: DataFrame,
+  depth: int,
+  colors: LinearSegmentedColormap,
+  limits: tuple[float, float],
+) -> None:
+  subset = candidates.loc[candidates["max_depth"] == depth]
+  loss = subset.pivot(index="learning_rate", columns="n_estimators", values="log_loss")
+  annotations = loss.map(lambda value: f"{value:.4f}")
+  selected = subset.loc[subset["selected"]]
+  if not selected.empty:
+    row = selected.iloc[0]
+    annotations.loc[row["learning_rate"], row["n_estimators"]] += "★"
+  sns.heatmap(
+    loss,
+    ax=axis,
+    annot=annotations,
+    fmt="",
+    cmap=colors,
+    vmin=limits[0],
+    vmax=limits[1],
+    cbar=False,
+    linewidths=0.5,
+    linecolor=_COLORS["border"],
+    annot_kws={"fontsize": 8},
+  )
+  row_positions = {float(value): index for index, value in enumerate(loss.index)}
+  column_positions = {int(value): index for index, value in enumerate(loss.columns)}
+  for candidate in subset.loc[subset["near_best"]].itertuples(index=False):
+    axis.add_patch(
+      Rectangle(
+        (
+          column_positions[int(cast(Any, candidate.n_estimators))],
+          row_positions[float(cast(Any, candidate.learning_rate))],
+        ),
+        1,
+        1,
+        fill=False,
+        edgecolor=_COLORS["accent"] if candidate.selected else _COLORS["cyan"],
+        linewidth=3 if candidate.selected else 1.5,
+      )
+    )
+  axis.set(
+    title=f"Depth {depth}",
+    xlabel="Boosting trees",
+    ylabel="Learning rate",
+  )
+  axis.tick_params(axis="x", labelrotation=0)
+  axis.tick_params(axis="y", labelrotation=0)
+
+
 def _plot_candidate_loss(axis: Any, baseline: Baseline) -> None:
   candidates = baseline.candidates
-  labels = [f"depth {depth}" for depth in candidates["max_depth"]]
+  best_by_depth = candidates.groupby("max_depth", observed=True)["log_loss"].min()
+  labels = [f"depth {depth}" for depth in best_by_depth.index]
   colors = [
     _COLORS["accent"] if depth == baseline.selected_depth else _COLORS["cyan"]
-    for depth in candidates["max_depth"]
+    for depth in best_by_depth.index
   ]
-  bars = axis.bar(labels, candidates["log_loss"], color=colors, alpha=0.82)
+  bars = axis.bar(labels, best_by_depth, color=colors, alpha=0.82)
   axis.bar_label(bars, fmt="%.4f", padding=3, color=_COLORS["foreground"], fontsize=8)
   axis.axhline(
     baseline.reference.log_loss,
@@ -271,45 +358,46 @@ def _plot_candidate_loss(axis: Any, baseline: Baseline) -> None:
     label="Train-rate reference",
   )
   axis.set(
-    title=f"Selected depth {baseline.selected_depth} · lowest log loss",
-    xlabel="Candidate",
+    title=(
+      f"Selected d{baseline.selected_depth} · η {baseline.selected_learning_rate:g} · "
+      f"{baseline.selected_estimators} trees"
+    ),
+    xlabel="Best candidate at each depth",
     ylabel="Validation log loss · lower is better",
-    ylim=(0, max(float(candidates["log_loss"].max()), baseline.reference.log_loss) * 1.2),
+    ylim=(0, max(float(best_by_depth.max()), baseline.reference.log_loss) * 1.2),
   )
   axis.legend(fontsize=8)
 
 
 def _plot_candidate_ranking(axis: Any, baseline: Baseline) -> None:
   candidates = baseline.candidates
-  positions = list(range(len(candidates)))
-  width = 0.34
-  auc = axis.bar(
-    [position - width / 2 for position in positions],
-    candidates["auroc"],
-    width,
-    label="AUROC",
-    color=_COLORS["cyan"],
-    alpha=0.82,
+  palette = (_COLORS["cyan"], _COLORS["green"], _COLORS["orange"], _COLORS["purple"])
+  for index, (depth, group) in enumerate(candidates.groupby("max_depth", observed=True)):
+    axis.scatter(
+      group["auroc"],
+      group["average_precision"],
+      color=palette[index % len(palette)],
+      alpha=0.72,
+      label=f"Depth {depth}",
+    )
+  selected = candidates.loc[candidates["selected"]].iloc[0]
+  axis.scatter(
+    selected["auroc"],
+    selected["average_precision"],
+    marker="*",
+    s=180,
+    color=_COLORS["accent"],
+    edgecolor=_COLORS["deep"],
+    linewidth=0.8,
+    label="Selected",
+    zorder=4,
   )
-  precision = axis.bar(
-    [position + width / 2 for position in positions],
-    candidates["average_precision"],
-    width,
-    label="Average precision",
-    color=_COLORS["pink"],
-    alpha=0.82,
-  )
-  axis.bar_label(auc, fmt="%.3f", padding=2, color=_COLORS["foreground"], fontsize=7)
-  axis.bar_label(precision, fmt="%.3f", padding=2, color=_COLORS["foreground"], fontsize=7)
   axis.set(
-    title="Validation ranking",
-    xlabel="Candidate",
-    ylabel="Score",
-    xticks=positions,
-    xticklabels=[f"depth {depth}" for depth in candidates["max_depth"]],
-    ylim=(0, 1),
+    title="Ranking-metric tradeoff",
+    xlabel="AUROC",
+    ylabel="Average precision",
   )
-  axis.legend(fontsize=8)
+  axis.legend(fontsize=7)
 
 
 def _plot_calibration(axis: Any, baseline: Baseline) -> None:
@@ -366,8 +454,8 @@ def _plot_importance(axis: Any, baseline: Baseline) -> None:
   labels = [str(feature).replace("_", " ") for feature in importance["feature"]]
   axis.barh(labels, importance["importance"], color=_COLORS["purple"], alpha=0.82)
   axis.set(
-    title="Selected model · impurity importance",
-    xlabel="Normalized importance",
+    title="Selected model · permutation importance",
+    xlabel="Validation log-loss increase when permuted",
     ylabel="Transformed feature",
   )
   axis.tick_params(axis="y", labelsize=7)

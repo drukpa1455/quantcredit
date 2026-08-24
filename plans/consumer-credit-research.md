@@ -1088,8 +1088,78 @@ additive-tree hypothesis does not require that operational dependency.
 - Synthetic tests cover selection, train-only fitting, invalid folds, unknown
   categories, non-mutation, and figure semantics.
 
-**Next issue:** Expose exactly one explicit test query for the frozen depth-2
-model and retain the resulting out-of-time evidence without reopening selection.
+**Next issue:** Test whether the depth-only conclusion survives a declared
+multidimensional sensitivity surface before freezing the test query.
+
+#### Issue 2.4: Map multidimensional GBM sensitivity
+
+**What and why:** A depth sweep can mistake one arbitrary learning-rate/tree-
+count pairing for a structural result. Map the interaction between tree depth,
+shrinkage, and boosting rounds before freezing the incumbent.
+
+**Status:** In progress.
+
+**Decision:** `qc.fit(examples)` evaluates the complete declared Cartesian
+product of depths `(1, 2, 3, 4)`, learning rates `(0.02, 0.05, 0.10)`, and tree
+counts `(60, 120, 240)` for one deterministic histogram gradient booster after
+fitting preprocessing once on train. Validation log loss remains primary.
+Candidate uncertainty is the standard error of its paired per-loan log-loss
+difference from the empirical best candidate. A model is near-best when its
+excess loss is no larger than that paired standard error; selection minimizes
+the declared leaf-budget proxy `trees × 2^depth` within that set, then depth,
+trees, and learning rate. This exposes rather than hides the small-sample
+simplicity judgment. Validation permutation importance replaces biased
+impurity importance for the selected model.
+
+The full factorial surface is preferred to random or Bayesian search because
+the three dimensions and their interaction are the research result. It is not
+general hyperparameter optimization, and it does not add subsampling, feature
+sampling, leaf-size, class-weight, or calibration searches without evidence.
+
+The first complete implementation used the earlier classical gradient booster
+and required 1,610 seconds for 36 fits, excluding the source scan. That invalidated
+it as the workbench owner. The accepted histogram implementation evaluates the
+same declared hypothesis in 337 seconds and leaves the simple call explicit and
+bounded; a timed analysis can pass narrower tuples without changing semantics.
+
+**Real validation evidence:**
+
+- The empirical best is depth 4, learning rate `0.02`, and 240 trees: log loss
+  `0.038505`, average precision `0.3769`, and AUROC `0.8428`.
+- Five candidates are within one paired standard error of that empirical best.
+  The leaf-budget rule selects depth 2, learning rate `0.05`, and 120 trees:
+  log loss `0.038648`, average precision `0.3708`, AUROC `0.8479`, and Brier
+  score `0.00772`.
+- The selected model gives up only `0.000143` log loss, below its paired standard
+  error of `0.000303`, while using leaf budget 480 versus 3,840 for the empirical
+  best. The original depth-2 configuration therefore survives the broader
+  sensitivity test for a stronger reason than winning one arbitrary slice.
+- The surface shows the expected interaction: additional trees help at low
+  learning rates, while deep trees deteriorate at learning rate `0.10`.
+- Permutation importance is led by next payment due, remaining term,
+  delinquency days, current LTV, and original interest rate. It remains
+  predictive evidence rather than causal explanation.
+
+**Done when:**
+
+- Every declared combination is evaluated on the same train-fitted transformed
+  matrices and validation rows; order and selection are deterministic.
+- Candidate evidence includes the three parameters, leaf-budget proxy, all
+  declared metrics, paired log-loss delta and standard error, near-best status,
+  and the selected marker. **AC-4**, **AC-9**
+- `baseline.surface()` renders one common-scale learning-rate × tree-count heatmap
+  per depth, while `baseline.plot()` remains a legible decision dashboard.
+  **D-14**
+- Tests prove the Cartesian product, paired uncertainty, simplest-near-best
+  selection, parameter validation, train-only fitting, test-fold independence,
+  and adaptive visual semantics.
+- The real validation surface is reviewed full-resolution and the selected
+  configuration, nearby alternatives, runtime, and remaining uncertainty are
+  recorded before any test query exists.
+
+**Next issue:** Expose exactly one explicit test query for the sensitivity-
+selected frozen model and retain its out-of-time evidence without reopening
+selection.
 
 ### Stage 3: Matched static GBM/GINE experiment
 

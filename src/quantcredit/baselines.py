@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from itertools import product
+from math import sqrt
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 from pandas import DataFrame
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
+from sklearn.inspection import permutation_importance
 from sklearn.metrics import (
   average_precision_score,
   brier_score_loss,
@@ -26,7 +29,10 @@ from quantcredit.populations import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMER
 if TYPE_CHECKING:
   from matplotlib.figure import Figure
 
-DEFAULT_DEPTHS = (2, 3, 4)
+DEFAULT_DEPTHS = (1, 2, 3, 4)
+DEFAULT_LEARNING_RATES = (0.02, 0.05, 0.10)
+DEFAULT_ESTIMATORS = (60, 120, 240)
+MAX_CANDIDATES = 256
 
 
 @dataclass(frozen=True)
@@ -47,8 +53,10 @@ class Baseline:
   """A validation-selected baseline whose preprocessing was fit on train only."""
 
   preprocessor: ColumnTransformer
-  classifier: GradientBoostingClassifier
+  classifier: HistGradientBoostingClassifier
   selected_depth: int
+  selected_learning_rate: float
+  selected_estimators: int
   candidates: DataFrame
   reference: Metrics
   validation: Metrics
@@ -61,17 +69,24 @@ class Baseline:
 
     return plot_baseline(self)
 
+  def surface(self) -> Figure:
+    """Render the declared multidimensional validation sensitivity surface."""
+    from quantcredit.visuals import plot_sensitivity
+
+    return plot_sensitivity(self)
+
 
 def fit_baseline(
   examples: DataFrame,
   *,
   depths: tuple[int, ...] = DEFAULT_DEPTHS,
-  n_estimators: int = 120,
-  learning_rate: float = 0.05,
+  learning_rates: tuple[float, ...] = DEFAULT_LEARNING_RATES,
+  estimators: tuple[int, ...] = DEFAULT_ESTIMATORS,
   seed: int = 7,
 ) -> Baseline:
-  """Fit preprocessing on train and select tree depth by validation log loss."""
-  _validate(examples, depths, n_estimators, learning_rate)
+  """Fit train-only preprocessing and select a near-best validation candidate."""
+  parameters = _parameters(depths, learning_rates, estimators)
+  _validate_examples(examples)
   train = _binary_fold(examples, "train")
   validation = _binary_fold(examples, "validation")
   train_x, train_y = _xy(train)
@@ -81,61 +96,73 @@ def fit_baseline(
   transformed_train = preprocessor.fit_transform(train_x)
   transformed_validation = preprocessor.transform(validation_x)
 
-  candidates: list[
-    tuple[
-      int,
-      GradientBoostingClassifier,
-      np.ndarray[Any, np.dtype[np.float64]],
-      Metrics,
-    ]
-  ] = []
-  for depth in sorted(set(depths)):
-    classifier = GradientBoostingClassifier(
-      max_depth=depth,
-      n_estimators=n_estimators,
-      learning_rate=learning_rate,
-      random_state=seed,
-    )
+  scores = []
+  metrics = []
+  for depth, learning_rate, n_estimators in parameters:
+    classifier = _classifier(depth, learning_rate, n_estimators, seed)
     classifier.fit(transformed_train, train_y)
-    scores = classifier.predict_proba(transformed_validation)[:, 1]
-    candidates.append((depth, classifier, scores, _metrics(validation_y, scores)))
+    candidate_scores = classifier.predict_proba(transformed_validation)[:, 1]
+    scores.append(candidate_scores)
+    metrics.append(_metrics(validation_y, candidate_scores))
 
-  selected = min(candidates, key=lambda candidate: (candidate[3].log_loss, candidate[0]))
-  depth, classifier, scores, metrics = selected
+  candidates, selected_index = _compare(validation_y, parameters, scores, metrics)
+  selected = parameters[selected_index]
+  selected_scores = scores[selected_index]
+  selected_metrics = metrics[selected_index]
+  depth, learning_rate, n_estimators = selected
+  classifier = _classifier(depth, learning_rate, n_estimators, seed)
+  classifier.fit(transformed_train, train_y)
   reference_scores = np.full(len(validation_y), float(train_y.mean()))
   return Baseline(
     preprocessor=preprocessor,
     classifier=classifier,
     selected_depth=depth,
-    candidates=DataFrame(
-      [
-        {"max_depth": candidate_depth, **_metric_record(candidate_metrics)}
-        for candidate_depth, _, _, candidate_metrics in candidates
-      ]
-    ),
+    selected_learning_rate=learning_rate,
+    selected_estimators=n_estimators,
+    candidates=candidates,
     reference=_metrics(validation_y, reference_scores),
-    validation=metrics,
-    calibration=_calibration(validation_y, scores),
-    importance=_importance(preprocessor, classifier),
+    validation=selected_metrics,
+    calibration=_calibration(validation_y, selected_scores),
+    importance=_importance(
+      preprocessor,
+      classifier,
+      transformed_validation,
+      validation_y,
+      seed,
+    ),
   )
 
 
-def _validate(
-  examples: DataFrame,
+def _parameters(
   depths: tuple[int, ...],
-  n_estimators: int,
-  learning_rate: float,
-) -> None:
+  learning_rates: tuple[float, ...],
+  estimators: tuple[int, ...],
+) -> tuple[tuple[int, float, int], ...]:
+  if not depths or any(depth <= 0 for depth in depths) or len(set(depths)) != len(depths):
+    raise ValueError("depths must contain distinct positive integers")
+  if (
+    not learning_rates
+    or any(not 0 < rate <= 1 for rate in learning_rates)
+    or len(set(learning_rates)) != len(learning_rates)
+  ):
+    raise ValueError("learning_rates must contain distinct values in (0, 1]")
+  if (
+    not estimators
+    or any(count <= 0 for count in estimators)
+    or len(set(estimators)) != len(estimators)
+  ):
+    raise ValueError("estimators must contain distinct positive integers")
+  count = len(depths) * len(learning_rates) * len(estimators)
+  if count > MAX_CANDIDATES:
+    raise ValueError(f"sensitivity grid exceeds {MAX_CANDIDATES} candidates")
+  return tuple(product(sorted(depths), sorted(learning_rates), sorted(estimators)))
+
+
+def _validate_examples(examples: DataFrame) -> None:
   required = {"fold", "target", *FEATURE_COLUMNS}
   missing = sorted(required - set(examples.columns))
   if missing:
     raise ValueError(f"examples are missing required columns: {', '.join(missing)}")
-  if not depths or any(depth <= 0 for depth in depths):
-    raise ValueError("depths must contain positive integers")
-  if n_estimators <= 0:
-    raise ValueError("n_estimators must be positive")
-  if not 0 < learning_rate <= 1:
-    raise ValueError("learning_rate must be in (0, 1]")
 
 
 def _binary_fold(examples: DataFrame, fold: str) -> DataFrame:
@@ -179,7 +206,71 @@ def _preprocessor() -> ColumnTransformer:
   )
 
 
-def _metrics(target: np.ndarray[Any, np.dtype[np.int64]], scores: np.ndarray[Any, Any]) -> Metrics:
+def _classifier(
+  depth: int,
+  learning_rate: float,
+  n_estimators: int,
+  seed: int,
+) -> HistGradientBoostingClassifier:
+  return HistGradientBoostingClassifier(
+    max_depth=depth,
+    learning_rate=learning_rate,
+    max_iter=n_estimators,
+    random_state=seed,
+    early_stopping=False,
+  )
+
+
+def _compare(
+  target: NDArray[np.int64],
+  parameters: tuple[tuple[int, float, int], ...],
+  scores: list[NDArray[np.float64]],
+  metrics: list[Metrics],
+) -> tuple[DataFrame, int]:
+  best_index = min(range(len(metrics)), key=lambda index: metrics[index].log_loss)
+  best_losses = _losses(target, scores[best_index])
+  records: list[dict[str, int | float | bool]] = []
+  for (depth, learning_rate, n_estimators), candidate_scores, candidate_metrics in zip(
+    parameters, scores, metrics, strict=True
+  ):
+    differences = _losses(target, candidate_scores) - best_losses
+    delta = float(differences.mean())
+    delta_se = float(differences.std(ddof=1) / sqrt(len(differences)))
+    records.append(
+      {
+        "max_depth": depth,
+        "learning_rate": learning_rate,
+        "n_estimators": n_estimators,
+        "leaf_budget": n_estimators * 2**depth,
+        **_metric_record(candidate_metrics),
+        "log_loss_delta": delta,
+        "log_loss_delta_se": delta_se,
+        "near_best": delta <= delta_se,
+      }
+    )
+
+  eligible = [index for index, record in enumerate(records) if record["near_best"]]
+  selected_index = min(
+    eligible,
+    key=lambda index: (
+      records[index]["leaf_budget"],
+      records[index]["max_depth"],
+      records[index]["n_estimators"],
+      records[index]["learning_rate"],
+    ),
+  )
+  for index, record in enumerate(records):
+    record["selected"] = index == selected_index
+  return DataFrame(records), selected_index
+
+
+def _losses(target: NDArray[np.int64], scores: NDArray[np.float64]) -> NDArray[np.float64]:
+  probabilities = np.clip(scores, np.finfo(float).eps, 1 - np.finfo(float).eps)
+  losses = -(target * np.log(probabilities) + (1 - target) * np.log1p(-probabilities))
+  return np.asarray(losses, dtype=np.float64)
+
+
+def _metrics(target: NDArray[np.int64], scores: NDArray[np.float64]) -> Metrics:
   events = int(target.sum())
   return Metrics(
     samples=len(target),
@@ -205,8 +296,8 @@ def _metric_record(metrics: Metrics) -> dict[str, int | float]:
 
 
 def _calibration(
-  target: np.ndarray[Any, np.dtype[np.int64]],
-  scores: np.ndarray[Any, Any],
+  target: NDArray[np.int64],
+  scores: NDArray[np.float64],
   *,
   bands: int = 10,
 ) -> DataFrame:
@@ -230,10 +321,21 @@ def _calibration(
 
 def _importance(
   preprocessor: ColumnTransformer,
-  classifier: GradientBoostingClassifier,
+  classifier: HistGradientBoostingClassifier,
+  features: NDArray[np.float64],
+  target: NDArray[np.int64],
+  seed: int,
 ) -> DataFrame:
   names = preprocessor.get_feature_names_out()
-  values = classifier.feature_importances_
+  result = permutation_importance(
+    classifier,
+    features,
+    target,
+    scoring="neg_log_loss",
+    n_repeats=3,
+    random_state=seed,
+  )
+  values = cast(Any, result).importances_mean
   if len(names) != len(values):
     raise RuntimeError("transformed feature names do not align with model importances")
   return (
