@@ -87,8 +87,17 @@ class LoanSnapshot:
   def field(self, name: str) -> SourceField:
     return next((item for item in self.fields if item.name == name), SourceField(name, ()))
 
+  def value(self, name: str) -> str | None:
+    """Return one optional singleton source value."""
+    values = self.field(name).values
+    if not values:
+      return None
+    if len(values) != 1:
+      raise ValueError(f"{self.accession}: repeated singleton element {name}")
+    return values[0]
+
   def decimal(self, name: str) -> Decimal | None:
-    value = self._one(name)
+    value = self.value(name)
     if value is None:
       return None
     try:
@@ -100,7 +109,7 @@ class LoanSnapshot:
     return number
 
   def integer(self, name: str) -> int | None:
-    value = self._one(name)
+    value = self.value(name)
     if value is None:
       return None
     try:
@@ -123,14 +132,6 @@ class LoanSnapshot:
     if status < 0:
       raise ValueError(f"{self.accession}: negative element currentDelinquencyStatus")
     return status
-
-  def _one(self, name: str) -> str | None:
-    values = self.field(name).values
-    if not values:
-      return None
-    if len(values) != 1:
-      raise ValueError(f"{self.accession}: repeated singleton element {name}")
-    return values[0]
 
 
 @dataclass(frozen=True)

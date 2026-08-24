@@ -6,6 +6,7 @@ from pathlib import Path
 from platform import python_version
 
 import quantcredit as qc
+from quantcredit.populations import FEATURE_LINEAGE, LEAKAGE_FIELDS
 from quantcredit.source import load_manifest
 
 ROOT = Path.cwd()
@@ -63,6 +64,23 @@ split.summary()
 # %% 05a — Causal timeline
 # When are features measured, and when is each outcome fully observable?
 split.plot()
+
+
+# %% 05b — Modeling population
+# Which eligible loan-cutoff positions remain observable in each fold?
+examples = qc.examples(manifest, split)
+population = examples.groupby(["fold", "target_status"], observed=True).size().unstack(
+  fill_value=0
+)
+binary = examples.dropna(subset=["target"])
+events = binary.groupby("fold", observed=True)["target"].agg(["count", "sum", "mean"])
+missing = examples[list(FEATURE_LINEAGE)].isna().sum().sort_values(ascending=False)
+{"population": population, "binary_events": events, "feature_missingness": missing}
+
+
+# %% 05c — Feature boundary
+# Which past-only fields enter the baseline, and which outcome fields stay out?
+{"features": FEATURE_LINEAGE, "excluded_as_leakage": LEAKAGE_FIELDS}
 
 
 # %% 06 — Shallow GBM baseline

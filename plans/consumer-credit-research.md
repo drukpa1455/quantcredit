@@ -174,12 +174,12 @@ and portfolio research are first-class outcomes even if no graph model wins.
 typed streaming snapshots, identity and continuity validation, an aggregate-only
 transition audit, one explicit three-report target, and executable notebook
 sections `00` through `05`, including a label-maturity-aware chronological
-split and Sapphire aggregate figures. It does not yet materialize the modeling
-population or provide the classical credit-analysis toolkit. TinyMesh can
-express a homogeneous edge-aware loan graph and a fixed-node monthly segment
-graph, but there is no evidence that either adds useful information beyond a
-tabular model. Adding relational or dynamic-temporal APIs now would violate
-TinyMesh's live-caller and graduation rules.
+split, Sapphire aggregate figures, and a past-only eligible modeling
+population. It does not yet train or evaluate the classical baseline.
+TinyMesh can express a homogeneous edge-aware loan graph and a fixed-node
+monthly segment graph, but there is no evidence that either adds useful
+information beyond a tabular model. Adding relational or dynamic-temporal APIs
+now would violate TinyMesh's live-caller and graduation rules.
 
 ### Desired behavior
 
@@ -944,9 +944,57 @@ parallel domain logic.
   intact.
 - API, audit, split, visual, type, lint, notebook, and package checks pass.
 
-**Next issue:** Materialize only eligible loan-cutoff examples at these dates,
-declare past-only features and excluded leakage fields, and report fold-level
-population and event counts before importing a model.
+#### Issue 2.2: Materialize the causal modeling population
+
+**What and why:** Turn verified monthly snapshots into one ordinary pandas row
+per eligible loan and prediction cutoff before a model can hide eligibility,
+censoring, missingness, or leakage mistakes.
+
+**Status:** Implemented; landed revision recorded after merge.
+
+**Decision:** `qc.examples(manifest, split)` rebuilds directly from verified
+source bytes and returns a DataFrame. Ineligible cutoff states are absent;
+positive and negative outcomes receive nullable binary `target` values;
+competing events and missing follow-up remain visible in `target_status` but
+never become negative labels. Loan identity is deterministically hashed and is
+not a feature. `FEATURE_LINEAGE` owns the selected past-only inputs and
+`LEAKAGE_FIELDS` owns explicit exclusions.
+
+**Real-panel evidence:**
+
+- 102,806 eligible loan-cutoff rows across the three frozen cutoffs and 24
+  past-only features.
+- Train: 35,077 negatives, 297 positives, and 1,938 competing events; binary
+  event rate 0.840%.
+- Validation: 31,875 negatives, 328 positives, and 2,152 competing events;
+  binary event rate 1.018%.
+- Test: 28,767 negatives, 319 positives, and 2,053 competing events; binary
+  event rate 1.097%.
+- No selected cutoff is right-censored by construction and no selected eligible
+  row has missing follow-up in this panel.
+- Fold-level label counts are protocol evidence allowed before modeling; no test
+  predictions, feature-target associations, or performance metrics are queried
+  before the model and primary metric freeze.
+- Payment-to-income is missing on 17,647 rows; employment and income
+  verification are each missing on 16,839; numeric credit score is missing on
+  1,644 because the source preserves `No Score` separately from absent values.
+
+**Done when:**
+
+- Source pins are verified before every materialization and no partial frame is
+  returned after source drift or parse failure. **INV-1**, **INV-9**
+- The split must be exactly reproducible from the same manifest and horizon.
+  **INV-4**
+- Target-defining, terminal, post-default, identity, and time-key source fields
+  cannot enter `FEATURE_COLUMNS`.
+- Synthetic tests cover positive, negative, competing, missing-follow-up, and
+  ineligible paths without retaining source identities.
+- Notebook sections `05b` and `05c` report fold populations, event rates,
+  missingness, feature lineage, and leakage exclusions before section `06`.
+
+**Next issue:** Fit train-only preprocessing and one shallow explainable GBM,
+select with validation only, and freeze ranking plus calibration diagnostics
+before opening the test fold.
 
 ### Stage 3: Matched static GBM/GINE experiment
 
