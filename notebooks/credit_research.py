@@ -7,7 +7,7 @@ from platform import python_version
 
 from quantcredit.audit import audit_sources
 from quantcredit.source import load_manifest
-from quantcredit.splits import chronological_split
+from quantcredit.splits import causal_split
 
 ROOT = Path.cwd()
 if not (ROOT / "pyproject.toml").is_file():
@@ -19,13 +19,13 @@ if not (ROOT / "pyproject.toml").is_file():
 # %% 01 — Acquire and verify sources
 # Acquisition is the explicit `python -m quantcredit.acquire` shell effect.
 # The notebook reads only the resulting tracked declaration and ignored cache.
-manifest = load_manifest(ROOT / "sources/ford-credit-auto-owner-trust-2024-a.json")
+manifest = load_manifest()
 manifest.summary()
 
 
 # %% 02 — Schema, identity, and missingness
 # Which fields exist, which states are distinct, and is asset identity stable?
-audit = audit_sources(manifest, ROOT / "data/sec")
+audit = audit_sources(manifest)
 {
   "panel": audit["panel"],
   "states": audit["states"],
@@ -52,7 +52,7 @@ audit["targets"]
 
 # %% 05 — Chronological split
 # What would have been knowable at each prediction cutoff?
-split = chronological_split(tuple(filing.report_period for filing in manifest.filings))
+split = causal_split(manifest.report_periods)
 split.summary()
 
 

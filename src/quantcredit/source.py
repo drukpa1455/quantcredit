@@ -47,6 +47,10 @@ class SourceManifest:
   access_policy: AccessPolicy
   filings: tuple[Filing, ...]
 
+  @property
+  def report_periods(self) -> tuple[date, ...]:
+    return tuple(filing.report_period for filing in self.filings)
+
   def summary(self) -> dict[str, str | int]:
     return {
       "dataset": self.dataset,
