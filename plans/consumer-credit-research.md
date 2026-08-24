@@ -1097,7 +1097,7 @@ multidimensional sensitivity surface before freezing the test query.
 count pairing for a structural result. Map the interaction between tree depth,
 shrinkage, and boosting rounds before freezing the incumbent.
 
-**Status:** Implemented in `6e2e520`; landed revision recorded after merge.
+**Status:** Implemented in `6e2e520`; landed in `de2400f` via PR #17.
 
 **Decision:** `qc.fit(examples)` evaluates the complete declared Cartesian
 product of depths `(1, 2, 3, 4)`, learning rates `(0.02, 0.05, 0.10)`, and tree
