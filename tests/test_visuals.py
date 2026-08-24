@@ -213,6 +213,20 @@ class VisualTests(unittest.TestCase):
 
     self.assertIn("rejected", figure.axes[3].get_title())
 
+    missing = {**rejected, "name": "another_target"}
+    with self.assertRaisesRegex(ValueError, "missing the serious-delinquency"):
+      plot_audit(
+        Audit(
+          source=audit.source,
+          panel=audit.panel,
+          fields=audit.fields,
+          continuity=audit.continuity,
+          states=audit.states,
+          transitions=audit.transitions,
+          targets=(missing,),
+        )
+      )
+
   @staticmethod
   def _audit() -> Audit:
     return Audit(

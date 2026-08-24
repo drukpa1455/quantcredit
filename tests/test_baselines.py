@@ -88,9 +88,14 @@ class BaselineTests(unittest.TestCase):
     self.assertEqual(imputer.statistics_[credit_score_index], train_median)
     pd.testing.assert_frame_equal(examples, before)
 
-    no_selection = candidates.assign(selected=False)
-    with self.assertRaisesRegex(ValueError, "exactly one selected"):
-      replace(baseline, candidates=no_selection)
+    invalid_selections = (
+      candidates.assign(selected=False),
+      candidates.assign(selected=[True, True, *([False] * (len(candidates) - 2))]),
+    )
+    for invalid in invalid_selections:
+      with self.subTest(selected=int(invalid["selected"].sum())):
+        with self.assertRaisesRegex(ValueError, "exactly one selected"):
+          replace(baseline, candidates=invalid)
 
     wrong_classifier = fit_baseline(
       examples,
