@@ -1003,7 +1003,7 @@ model choice.
 **What and why:** Make imbalance, event-rate drift, feature missingness, and
 numeric feature drift visually legible before preprocessing or model choice.
 
-**Status:** Implemented; landed revision recorded after merge.
+**Status:** Implemented in `cc037a9`; landed revision recorded after merge.
 
 **Decision:** `plot_examples(examples)` renders four aggregate Sapphire panels:
 log-scale fold disposition counts, binary event rates, fold-level missingness,
