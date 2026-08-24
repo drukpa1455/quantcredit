@@ -8,10 +8,12 @@ import matplotlib as mpl
 mpl.use("Agg")
 
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from quantcredit.audits import Audit
+from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
-from quantcredit.visuals import plot_audit, plot_split, sapphire
+from quantcredit.visuals import plot_audit, plot_examples, plot_split, sapphire
 
 
 class VisualTests(unittest.TestCase):
@@ -68,6 +70,52 @@ class VisualTests(unittest.TestCase):
     self.assertIn("3-report label horizon", axis.get_title())
     self.assertEqual(axis.get_xlabel(), "2025 report period")
 
+  def test_example_figure_exposes_population_missingness_and_drift(self) -> None:
+    examples = self._examples()
+    before = examples.copy(deep=True)
+
+    figure = plot_examples(examples)
+
+    self.assertEqual(
+      {axis.get_title() for axis in figure.axes},
+      {
+        "Fold outcome composition · log scale",
+        "Binary event-rate drift",
+        "Feature missingness by fold",
+        "Median shift · train IQR units",
+      },
+    )
+    self.assertEqual(figure.axes[0].get_yscale(), "log")
+    self.assertIn(
+      "Payment To Income",
+      {tick.get_text() for tick in figure.axes[2].get_yticklabels()},
+    )
+    self.assertGreater(len(figure.axes[3].get_yticklabels()), 0)
+    self.assertGreaterEqual(figure.get_size_inches()[1], 9)
+    pd.testing.assert_frame_equal(examples, before)
+
+  def test_example_figure_rejects_an_incomplete_frame(self) -> None:
+    with self.assertRaisesRegex(ValueError, "missing required columns"):
+      plot_examples(pd.DataFrame({"fold": ["train"]}))
+
+    with self.assertRaisesRegex(ValueError, "at least one eligible cutoff"):
+      plot_examples(self._examples().iloc[0:0])
+
+  def test_example_figure_keeps_additional_fold_and_disposition_labels(self) -> None:
+    examples = self._examples()
+    extra = examples.iloc[[0]].copy()
+    extra["fold"] = "monitor"
+    extra["target_status"] = "manual_review"
+    extra["target"] = None
+
+    figure = plot_examples(pd.concat([examples, extra], ignore_index=True))
+
+    self.assertIn("Monitor", {tick.get_text() for tick in figure.axes[0].get_xticklabels()})
+    legend = figure.axes[0].get_legend()
+    self.assertIsNotNone(legend)
+    assert legend is not None
+    self.assertIn("Manual Review", {text.get_text() for text in legend.texts})
+
   @staticmethod
   def _audit() -> Audit:
     return Audit(
@@ -112,6 +160,39 @@ class VisualTests(unittest.TestCase):
         },
       ),
     )
+
+  @staticmethod
+  def _examples() -> pd.DataFrame:
+    categories = {
+      "credit_score_status",
+      "geography",
+      "vehicle_new_used",
+      "vehicle_type",
+      "credit_score_type",
+      "income_verification",
+      "employment_verification",
+      "payment_type",
+    }
+    rows = []
+    for fold_index, fold in enumerate(("train", "validation", "test")):
+      for row_index in range(4):
+        status = ("positive", "negative", "negative", "competing_event")[row_index]
+        row: dict[str, object] = {
+          "fold": fold,
+          "target_status": status,
+          "target": 1 if status == "positive" else 0 if status == "negative" else None,
+        }
+        for feature_index, feature in enumerate(FEATURE_COLUMNS):
+          if feature in categories:
+            row[feature] = f"group-{row_index % 2}"
+          else:
+            row[feature] = float(feature_index + row_index + fold_index)
+        if row_index < fold_index + 1:
+          row["payment_to_income"] = None
+        rows.append(row)
+    frame = pd.DataFrame(rows)
+    frame["target"] = frame["target"].astype(pd.Int8Dtype())
+    return frame
 
 
 if __name__ == "__main__":

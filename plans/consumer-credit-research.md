@@ -600,6 +600,9 @@ The first possible temporal promotion questions are deliberately separate:
   rather than inventing table, metric, booster, or plotting layers. `quantcredit`
   helpers compose these libraries around credit-specific invariants and remain
   small enough to rewrite or explain during an analysis.
+- **D-14:** Pair each material research table with one canonical aggregate
+  visual that reveals the pattern the table quantifies. Figures never become a
+  second transformation owner and never retain consumer-level rows.
 
 ### Failure and operational behavior
 
@@ -991,6 +994,40 @@ not a feature. `FEATURE_LINEAGE` owns the selected past-only inputs and
   ineligible paths without retaining source identities.
 - Notebook sections `05b` and `05c` report fold populations, event rates,
   missingness, feature lineage, and leakage exclusions before section `06`.
+
+**Next issue:** Render the frozen population evidence before preprocessing or
+model choice.
+
+#### Issue 2.2a: Visualize the modeling population
+
+**What and why:** Make imbalance, event-rate drift, feature missingness, and
+numeric feature drift visually legible before preprocessing or model choice.
+
+**Status:** Implemented in `cc037a9`; landed revision recorded after merge.
+
+**Decision:** `plot_examples(examples)` renders four aggregate Sapphire panels:
+log-scale fold disposition counts, binary event rates, fold-level missingness,
+and fold medians expressed in training-IQR units. Figure height derives from
+the number of displayed features; absent dispositions, missingness, constant
+features, and additional fold/status labels remain valid inputs.
+
+**Real-panel visual evidence:**
+
+- Binary event rate rises from 0.84% to 1.02% to 1.10%; model evaluation must
+  distinguish prevalence drift from ranking quality.
+- Payment-to-income and verification missingness rise modestly by fold, while
+  numeric credit-score missingness remains stable near 1.6%.
+- Median loan age advances by 0.40 then 0.80 training IQRs; remaining term,
+  current LTV, and balances decline together as the fixed pool seasons.
+
+**Done when:**
+
+- Notebook section `05d` calls the tested visual owner after the exact tables it
+  interprets and before section `06`. **D-14**
+- Plotting neither mutates the DataFrame nor exposes identifiers or source rows.
+- Required-column failures are explicit; empty frames fail rather than produce
+  a plausible blank chart.
+- Synthetic and real aggregate figures receive full-resolution visual review.
 
 **Next issue:** Fit train-only preprocessing and one shallow explainable GBM,
 select with validation only, and freeze ranking plus calibration diagnostics
