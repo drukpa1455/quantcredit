@@ -1172,7 +1172,8 @@ ordinary population exposed test-label marginals before evaluation, `Baseline`
 stored the selected candidate in parallel fields, and a valid rejected target
 decision caused its audit observer to fail with `StopIteration`.
 
-**Status:** Implemented; landed revision recorded after merge.
+**Status:** Implemented in `adc16c1` and `0948a2a`; landed in `95b9e48` via
+PR #19.
 
 **Decision:** `qc.examples(...)` retains every eligible test row and its
 past-only features while emitting `target_status="held_out"` and a missing
