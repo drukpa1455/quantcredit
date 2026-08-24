@@ -8,6 +8,7 @@ from platform import python_version
 from quantcredit.audit import audit_sources
 from quantcredit.source import load_manifest
 from quantcredit.splits import causal_split
+from quantcredit.visuals import plot_audit, plot_split
 
 ROOT = Path.cwd()
 if not (ROOT / "pyproject.toml").is_file():
@@ -50,10 +51,20 @@ audit = audit_sources(manifest)
 audit["targets"]
 
 
+# %% 04a — Data audit overview
+# How do population, states, transitions, and target disposition fit together?
+plot_audit(audit)
+
+
 # %% 05 — Chronological split
 # What would have been knowable at each prediction cutoff?
 split = causal_split(manifest.report_periods)
 split.summary()
+
+
+# %% 05a — Causal timeline
+# When are features measured, and when is each outcome fully observable?
+plot_split(split)
 
 
 # %% 06 — Shallow GBM baseline
