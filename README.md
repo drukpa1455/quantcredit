@@ -49,6 +49,10 @@ baseline.surface()
 baseline.plot()
 ```
 
+Ordinary materialization exposes train and validation outcomes but marks every
+eligible test row as `held_out` with a missing target. The later explicit test
+operation owns the one-time derivation and evaluation of those outcomes.
+
 The default baseline maps a declared 36-candidate validation surface. During a
 short assessment, narrow the same operation explicitly—for example,
 `qc.fit(examples, depths=(2, 3), learning_rates=(0.05,), estimators=(120,))`.

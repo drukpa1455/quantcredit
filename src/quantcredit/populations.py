@@ -13,7 +13,13 @@ from quantcredit.acquire import DEFAULT_CACHE, verify_asset
 from quantcredit.panel import AssetKey, LoanSnapshot, SnapshotValidator, read_snapshots
 from quantcredit.source import SourceManifest
 from quantcredit.splits import CausalSplit, causal_split
-from quantcredit.targets import LoanState, TargetResult, loan_state, serious_delinquency_target
+from quantcredit.targets import (
+  LoanState,
+  TargetResult,
+  eligible_at_cutoff,
+  loan_state,
+  serious_delinquency_target,
+)
 
 FEATURE_LINEAGE = {
   "credit_score": ("obligorCreditScore",),
@@ -101,20 +107,30 @@ def materialize_examples(
 
   records: list[dict[str, object]] = []
   for (asset, cutoff), snapshot in cutoffs.items():
-    result = serious_delinquency_target(
-      histories[asset],
-      period_index[cutoff],
-      horizon_reports=split.horizon_reports,
-    )
-    if result is TargetResult.INELIGIBLE:
-      continue
+    history = histories[asset]
+    index = period_index[cutoff]
+    if cutoff == split.test_cutoff:
+      if not eligible_at_cutoff(history[index]):
+        continue
+      target_status = "held_out"
+      target = None
+    else:
+      result = serious_delinquency_target(
+        history,
+        index,
+        horizon_reports=split.horizon_reports,
+      )
+      if result is TargetResult.INELIGIBLE:
+        continue
+      target_status = result.value
+      target = _target(result)
     records.append(
       {
         "loan_id": _loan_id(asset),
         "cutoff": cutoff,
         "fold": folds[cutoff],
-        "target_status": result.value,
-        "target": _target(result),
+        "target_status": target_status,
+        "target": target,
         **_features(snapshot),
       }
     )
