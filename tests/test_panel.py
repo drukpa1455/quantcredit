@@ -59,6 +59,8 @@ class PanelTests(unittest.TestCase):
     snapshot = first_rows[0]
 
     self.assertEqual(snapshot.decimal("chargedoffPrincipalAmount"), Decimal("0.00"))
+    self.assertEqual(snapshot.value("originalLoanAmount"), "100.00")
+    self.assertIsNone(snapshot.value("recoveredAmount"))
     self.assertTrue(snapshot.field("recoveredAmount").missing)
     self.assertEqual(first_rows[1].zero_balance_codes, (ZeroBalanceCode.CHARGED_OFF,))
     self.assertEqual(first_rows[1].decimal("recoveredAmount"), Decimal("5.00"))

@@ -13,7 +13,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
-from quantcredit.fetch import Receipt, fetch
+from quantcredit.fetch import Receipt, fetch, verify
 from quantcredit.source import (
   DEFAULT_MANIFEST,
   Filing,
@@ -35,6 +35,27 @@ CHUNK_BYTES = 1024 * 1024
 class Asset:
   url: str
   declared_bytes: int | None
+
+
+def verify_asset(
+  filing: Filing,
+  cache: Path = DEFAULT_CACHE,
+  *,
+  max_bytes: int = DEFAULT_ASSET_LIMIT,
+) -> Receipt:
+  """Resolve and verify one pinned EX-102 cache asset."""
+  if not filing.pinned:
+    raise ValueError(f"unpinned EX-102 source: {filing.accession}")
+  assert filing.ex102_url is not None
+  assert filing.bytes is not None
+  assert filing.sha256 is not None
+  filename = Path(urlparse(filing.ex102_url).path).name
+  return verify(
+    cache / filing.accession / filename,
+    expected_bytes=filing.bytes,
+    expected_sha256=filing.sha256,
+    max_bytes=max_bytes,
+  )
 
 
 def discover_ex102(index_html: bytes, filing: Filing, cik: str) -> Asset:

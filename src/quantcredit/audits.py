@@ -8,13 +8,11 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlparse
 
-from quantcredit.acquire import DEFAULT_ASSET_LIMIT, DEFAULT_CACHE
-from quantcredit.fetch import verify
-from quantcredit.panel import AssetKey, LoanSnapshot, SnapshotValidator, read_snapshots
+from quantcredit.acquire import DEFAULT_CACHE, verify_asset
+from quantcredit.panel import AssetKey, SnapshotValidator, read_snapshots
 from quantcredit.source import DEFAULT_MANIFEST, SourceManifest, load_manifest
-from quantcredit.targets import LoanState, target_counts
+from quantcredit.targets import LoanState, loan_state, target_counts
 
 DEFAULT_HORIZON_REPORTS = 3
 
@@ -66,28 +64,17 @@ def audit_sources(
   coverage: list[dict[str, str | int]] = []
 
   for period_index, filing in enumerate(manifest.filings):
-    if not filing.pinned:
-      raise ValueError(f"unpinned EX-102 source: {filing.accession}")
+    receipt = verify_asset(filing, cache)
     assert filing.ex102_url is not None
-    assert filing.bytes is not None
-    assert filing.sha256 is not None
-    filename = Path(urlparse(filing.ex102_url).path).name
-    path = cache / filing.accession / filename
-    receipt = verify(
-      path,
-      expected_bytes=filing.bytes,
-      expected_sha256=filing.sha256,
-      max_bytes=DEFAULT_ASSET_LIMIT,
-    )
 
     current: dict[AssetKey, str] = {}
     snapshot_count = 0
-    for snapshot in read_snapshots(path, manifest, filing):
+    for snapshot in read_snapshots(receipt.path, manifest, filing):
       validator.observe(snapshot)
       snapshot_count += 1
       for source_field in snapshot.fields:
         field_presence[source_field.name] += 1
-      state = _loan_state(snapshot)
+      state = loan_state(snapshot)
       label = _state_label(state)
       states[label] += 1
       current[snapshot.key.asset] = label
@@ -144,15 +131,6 @@ def audit_sources(
     continuity=tuple(continuity),
     transitions=dict(sorted(transitions.items())),
     targets=tuple(_target_decisions(counts, horizon_reports)),
-  )
-
-
-def _loan_state(snapshot: LoanSnapshot) -> LoanState:
-  return LoanState(
-    snapshot.current_delinquency_status,
-    snapshot.zero_balance_codes,
-    snapshot.decimal("chargedoffPrincipalAmount"),
-    snapshot.decimal("recoveredAmount"),
   )
 
 

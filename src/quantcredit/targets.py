@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 
-from quantcredit.panel import ZeroBalanceCode
+from quantcredit.panel import LoanSnapshot, ZeroBalanceCode
 
 
 @dataclass(frozen=True)
@@ -37,6 +37,16 @@ class TargetResult(StrEnum):
   CENSORED = "missing_followup"
   RIGHT_CENSORED = "right_censored"
   INELIGIBLE = "ineligible_at_cutoff"
+
+
+def loan_state(snapshot: LoanSnapshot) -> LoanState:
+  """Derive the target-relevant state from one reported snapshot."""
+  return LoanState(
+    snapshot.current_delinquency_status,
+    snapshot.zero_balance_codes,
+    snapshot.decimal("chargedoffPrincipalAmount"),
+    snapshot.decimal("recoveredAmount"),
+  )
 
 
 def serious_delinquency_target(

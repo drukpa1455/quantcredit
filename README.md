@@ -37,6 +37,9 @@ audit.plot()
 
 split = qc.split(manifest.report_periods)
 split.plot()
+
+examples = qc.examples(manifest, split)
+examples.groupby(["fold", "target_status"]).size()
 ```
 
 `quantcredit.visuals.plot_audit` and `plot_split` remain available when explicit
