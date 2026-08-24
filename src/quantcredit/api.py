@@ -10,6 +10,7 @@ if TYPE_CHECKING:
   from pandas import DataFrame
 
   from quantcredit.audits import Audit
+  from quantcredit.baselines import Baseline
   from quantcredit.source import SourceManifest
   from quantcredit.splits import CausalSplit
 
@@ -46,3 +47,23 @@ def examples(
   if cache is None:
     return materialize_examples(manifest, split)
   return materialize_examples(manifest, split, cache)
+
+
+def fit(
+  examples: DataFrame,
+  *,
+  depths: tuple[int, ...] = (2, 3, 4),
+  n_estimators: int = 120,
+  learning_rate: float = 0.05,
+  seed: int = 7,
+) -> Baseline:
+  """Fit the train-only shallow GBM and select depth on validation log loss."""
+  from quantcredit.baselines import fit_baseline
+
+  return fit_baseline(
+    examples,
+    depths=depths,
+    n_estimators=n_estimators,
+    learning_rate=learning_rate,
+    seed=seed,
+  )

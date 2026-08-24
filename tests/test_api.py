@@ -11,6 +11,7 @@ class ApiTests(unittest.TestCase):
   def test_exposes_memorable_research_entrypoints(self) -> None:
     self.assertEqual(qc.audit.__module__, "quantcredit.api")
     self.assertEqual(qc.examples.__module__, "quantcredit.api")
+    self.assertEqual(qc.fit.__module__, "quantcredit.api")
     self.assertEqual(qc.split.__module__, "quantcredit.api")
 
   def test_package_import_does_not_preload_the_audit_cli(self) -> None:
