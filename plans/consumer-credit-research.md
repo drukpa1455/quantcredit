@@ -1044,7 +1044,7 @@ before opening the test fold.
 validation categories, medians, target prevalence, or the unopened test fold
 shape preprocessing or model choice.
 
-**Status:** Implemented; landed revision recorded after merge.
+**Status:** Implemented in `2662dc6`; landed revision recorded after merge.
 
 **Decision:** `qc.fit(examples)` fits median numeric imputation, missingness
 indicators, and bounded one-hot categorical encoding on the train fold only.
