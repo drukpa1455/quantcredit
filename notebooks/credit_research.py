@@ -5,10 +5,8 @@ from importlib.metadata import version
 from pathlib import Path
 from platform import python_version
 
-from quantcredit.audit import audit_sources
+import quantcredit as qc
 from quantcredit.source import load_manifest
-from quantcredit.splits import causal_split
-from quantcredit.visuals import plot_audit, plot_split
 
 ROOT = Path.cwd()
 if not (ROOT / "pyproject.toml").is_file():
@@ -26,12 +24,12 @@ manifest.summary()
 
 # %% 02 — Schema, identity, and missingness
 # Which fields exist, which states are distinct, and is asset identity stable?
-audit = audit_sources(manifest)
+audit = qc.audit(manifest)
 {
-  "panel": audit["panel"],
-  "states": audit["states"],
+  "panel": audit.panel,
+  "states": audit.states,
   "most_missing_fields": sorted(
-    audit["fields"].items(), key=lambda item: item[1]["missing"], reverse=True
+    audit.fields.items(), key=lambda item: item[1]["missing"], reverse=True
   )[:10],
 }
 
@@ -39,32 +37,32 @@ audit = audit_sources(manifest)
 # %% 03 — Loan-state transitions
 # Which observed transitions are valid, terminal, reversible, or censored?
 {
-  "continuity": audit["continuity"],
+  "continuity": audit.continuity,
   "most_common_transitions": sorted(
-    audit["transitions"].items(), key=lambda item: item[1], reverse=True
+    audit.transitions.items(), key=lambda item: item[1], reverse=True
   )[:15],
 }
 
 
 # %% 04 — Target and censoring decision
 # Which outcome can be derived without treating disappearance as an event?
-audit["targets"]
+audit.targets
 
 
 # %% 04a — Data audit overview
 # How do population, states, transitions, and target disposition fit together?
-plot_audit(audit)
+audit.plot()
 
 
 # %% 05 — Chronological split
 # What would have been knowable at each prediction cutoff?
-split = causal_split(manifest.report_periods)
+split = qc.split(manifest.report_periods)
 split.summary()
 
 
 # %% 05a — Causal timeline
 # When are features measured, and when is each outcome fully observable?
-plot_split(split)
+split.plot()
 
 
 # %% 06 — Shallow GBM baseline

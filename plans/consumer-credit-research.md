@@ -918,6 +918,31 @@ tokens inspected from Reia revision
 - Tests verify figure semantics, scales, lanes, and theme cleanup; full-resolution
   synthetic and real aggregate renders receive visual inspection.
 
+#### Issue 2.1b: Make canonical research results fluent
+
+**What and why:** Keep live notebook syntax close to the research language:
+produce an aggregate audit or causal split, inspect it, then plot that same
+value without remembering a second module-level verb.
+
+**Status:** Implemented; landed revision recorded after merge.
+
+**Decision:** `quantcredit.audit(...)` returns an `Audit` value and
+`quantcredit.split(...)` returns a `CausalSplit`; both expose `.plot()` as a
+small notebook affordance. The methods delegate to `plot_audit` and
+`plot_split`, which remain the single functional plotting owners. The short
+constructors directly alias the existing descriptive owners; they add no
+wrappers or parallel paths.
+
+**Done when:**
+
+- The canonical notebook uses `qc.audit(...)`, `audit.plot()`, `qc.split(...)`,
+  and `split.plot()`.
+- Aggregate audit fields are named attributes rather than an untyped outer
+  dictionary.
+- Audit CLI JSON, functional plot calls, and existing causal behavior remain
+  intact.
+- API, audit, split, visual, type, lint, notebook, and package checks pass.
+
 **Next issue:** Materialize only eligible loan-cutoff examples at these dates,
 declare past-only features and excluded leakage fields, and report fold-level
 population and event counts before importing a model.

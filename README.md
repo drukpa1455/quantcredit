@@ -25,6 +25,23 @@ uv run --locked python -m quantcredit.source
 Open the repository in Zed, select its `.venv` toolchain and kernel, then run a
 cell with `Ctrl-Shift-Enter`.
 
+The notebook API keeps the common path on the research values themselves:
+
+```python
+import quantcredit as qc
+from quantcredit.source import load_manifest
+
+manifest = load_manifest()
+audit = qc.audit(manifest)
+audit.plot()
+
+split = qc.split(manifest.report_periods)
+split.plot()
+```
+
+`quantcredit.visuals.plot_audit` and `plot_split` remain available when explicit
+functional composition is preferable.
+
 To acquire and checksum-pin the declared EX-102 files, provide the identifying
 user agent required by SEC access policy without storing it in the repository:
 
