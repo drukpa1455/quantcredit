@@ -7,7 +7,8 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 
-from quantcredit.audit import Audit, audit_sources
+import quantcredit as qc
+from quantcredit.audits import Audit, audit_sources
 from quantcredit.source import Filing, load_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +47,7 @@ class AuditTests(unittest.TestCase):
     self.manifest = replace(source, filings=filings)
 
   def test_emits_aggregate_source_state_continuity_and_target_evidence(self) -> None:
-    result = audit_sources(self.manifest, self.cache, horizon_reports=1)
+    result = qc.audit(self.manifest, self.cache, horizon_reports=1)
 
     self.assertIsInstance(result, Audit)
     self.assertEqual(result.panel["snapshots"], 8)
