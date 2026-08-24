@@ -219,11 +219,16 @@ def _plot_population(axis: Any, audit: dict[str, Any]) -> None:
 
 def _plot_states(axis: Any, audit: dict[str, Any]) -> None:
   observed = cast(dict[str, int], audit["states"])
-  states = [state for state in _STATE_ORDER if observed.get(state, 0) > 0]
+  states = _ordered_states(observed)
   counts = [observed[state] for state in states]
   total = sum(counts)
   positions = range(len(states))
-  axis.barh(positions, counts, color=[_STATE_COLOR[state] for state in states], alpha=0.82)
+  axis.barh(
+    positions,
+    counts,
+    color=[_STATE_COLOR.get(state, _COLORS["accent"]) for state in states],
+    alpha=0.82,
+  )
   for position, count in zip(positions, counts, strict=True):
     axis.text(
       count * 1.15,
@@ -237,7 +242,7 @@ def _plot_states(axis: Any, audit: dict[str, Any]) -> None:
     title="Observed state share · log scale",
     xlabel="Snapshots",
     yticks=positions,
-    yticklabels=[_STATE_LABEL[state] for state in states],
+    yticklabels=[_state_label(state) for state in states],
     xscale="log",
   )
   axis.set_xlim(left=max(1, min(counts) / 2), right=max(counts) * 12)
@@ -251,9 +256,21 @@ def _period_label(periods: list[date]) -> str:
   return f"{span} report period"
 
 
+def _ordered_states(observed: dict[str, int]) -> list[str]:
+  known = [state for state in _STATE_ORDER if observed.get(state, 0) > 0]
+  unknown = sorted(
+    state for state, count in observed.items() if count > 0 and state not in _STATE_ORDER
+  )
+  return known + unknown
+
+
+def _state_label(state: str) -> str:
+  return _STATE_LABEL.get(state, state.replace("zero_balance:", "Zero balance "))
+
+
 def _plot_transitions(axis: Any, audit: dict[str, Any]) -> None:
   observed_states = cast(dict[str, int], audit["states"])
-  states = [state for state in _STATE_ORDER if state in observed_states]
+  states = _ordered_states(observed_states)
   index = {state: position for position, state in enumerate(states)}
   matrix = [[0 for _ in states] for _ in states]
   transitions = cast(dict[str, int], audit["transitions"])
@@ -273,7 +290,7 @@ def _plot_transitions(axis: Any, audit: dict[str, Any]) -> None:
   colors = LinearSegmentedColormap.from_list(
     "sapphire-transition", (_COLORS["deep"], _COLORS["cyan"])
   )
-  labels = [_STATE_LABEL[state] for state in states]
+  labels = [_state_label(state) for state in states]
   sns.heatmap(
     rates,
     ax=axis,
