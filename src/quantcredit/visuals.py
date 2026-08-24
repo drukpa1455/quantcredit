@@ -16,6 +16,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
 from matplotlib.ticker import StrMethodFormatter
 
+from quantcredit.audit import Audit
 from quantcredit.splits import CausalSplit
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
@@ -115,7 +116,7 @@ def sapphire() -> Iterator[None]:
     yield
 
 
-def plot_audit(audit: dict[str, Any]) -> Figure:
+def plot_audit(audit: Audit) -> Figure:
   """Show population, state, transition, and target evidence without source rows."""
   with sapphire():
     figure, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
@@ -188,8 +189,8 @@ def plot_split(split: CausalSplit) -> Figure:
     return figure
 
 
-def _plot_population(axis: Any, audit: dict[str, Any]) -> None:
-  continuity = cast(list[dict[str, Any]], audit["continuity"])
+def _plot_population(axis: Any, audit: Audit) -> None:
+  continuity = audit.continuity
   periods = [date.fromisoformat(str(row["report_period"])) for row in continuity]
   reported = [int(row["reported"]) for row in continuity]
   axis.plot(periods, reported, color=_COLORS["cyan"], linewidth=2.2, marker="o", markersize=4)
@@ -217,8 +218,8 @@ def _plot_population(axis: Any, audit: dict[str, Any]) -> None:
   axis.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
 
 
-def _plot_states(axis: Any, audit: dict[str, Any]) -> None:
-  observed = cast(dict[str, int], audit["states"])
+def _plot_states(axis: Any, audit: Audit) -> None:
+  observed = audit.states
   states = _ordered_states(observed)
   counts = [observed[state] for state in states]
   total = sum(counts)
@@ -268,12 +269,12 @@ def _state_label(state: str) -> str:
   return _STATE_LABEL.get(state, state.replace("zero_balance:", "Zero balance "))
 
 
-def _plot_transitions(axis: Any, audit: dict[str, Any]) -> None:
-  observed_states = cast(dict[str, int], audit["states"])
+def _plot_transitions(axis: Any, audit: Audit) -> None:
+  observed_states = audit.states
   states = _ordered_states(observed_states)
   index = {state: position for position, state in enumerate(states)}
   matrix = [[0 for _ in states] for _ in states]
-  transitions = cast(dict[str, int], audit["transitions"])
+  transitions = audit.transitions
   for transition, count in transitions.items():
     source, destination = transition.split(" -> ", 1)
     if source in index and destination in index:
@@ -311,8 +312,8 @@ def _plot_transitions(axis: Any, audit: dict[str, Any]) -> None:
   axis.tick_params(axis="y", labelrotation=0, labelsize=8)
 
 
-def _plot_targets(axis: Any, audit: dict[str, Any]) -> None:
-  targets = cast(list[dict[str, Any]], audit["targets"])
+def _plot_targets(axis: Any, audit: Audit) -> None:
+  targets = audit.targets
   decision = next(target for target in targets if target["status"] == "derived")
   counts = cast(dict[str, int], decision["counts"])
   categories = (
