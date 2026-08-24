@@ -924,7 +924,7 @@ tokens inspected from Reia revision
 produce an aggregate audit or causal split, inspect it, then plot that same
 value without remembering a second module-level verb.
 
-**Status:** Implemented; landed revision recorded after merge.
+**Status:** Complete at implementation revision `1806551`.
 
 **Decision:** `quantcredit.audit(...)` returns an `Audit` value and
 `quantcredit.split(...)` returns a `CausalSplit`; both expose `.plot()` as a
