@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
+from datetime import date
 from itertools import product
 from math import sqrt
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -24,10 +26,19 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 
-from quantcredit.populations import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
+from quantcredit.acquire import DEFAULT_CACHE
+from quantcredit.populations import (
+  CATEGORICAL_FEATURES,
+  FEATURE_COLUMNS,
+  NUMERIC_FEATURES,
+  materialize_test_examples,
+)
 
 if TYPE_CHECKING:
   from matplotlib.figure import Figure
+
+  from quantcredit.source import SourceManifest
+  from quantcredit.splits import CausalSplit
 
 DEFAULT_DEPTHS = (1, 2, 3, 4)
 DEFAULT_LEARNING_RATES = (0.02, 0.05, 0.10)
@@ -55,11 +66,17 @@ class Baseline:
   preprocessor: ColumnTransformer
   classifier: HistGradientBoostingClassifier
   candidates: DataFrame
+  reference_probability: float
   reference: Metrics
   calibration: DataFrame
   importance: DataFrame
 
   def __post_init__(self) -> None:
+    self._validate_selection()
+    if not 0 < self.reference_probability < 1:
+      raise ValueError("reference probability must be in (0, 1)")
+
+  def _validate_selection(self) -> None:
     selected = self.selected
     fitted_parameters = self.classifier.get_params()
     parameters = (
@@ -138,6 +155,37 @@ class Baseline:
     return plot_sensitivity(self)
 
 
+@dataclass(frozen=True)
+class Evaluation:
+  """Aggregate out-of-time evidence for one frozen baseline."""
+
+  baseline: Baseline = field(repr=False)
+  cutoff: date
+  labels_observed_through: date
+  metrics: Metrics
+  reference: Metrics
+  calibration: DataFrame
+
+  def summary(self) -> dict[str, Any]:
+    return {
+      "cutoff": self.cutoff.isoformat(),
+      "labels_observed_through": self.labels_observed_through.isoformat(),
+      "selected": {
+        "max_depth": self.baseline.selected_depth,
+        "learning_rate": self.baseline.selected_learning_rate,
+        "n_estimators": self.baseline.selected_estimators,
+      },
+      "metrics": asdict(self.metrics),
+      "reference": asdict(self.reference),
+    }
+
+  def plot(self) -> Figure:
+    """Render aggregate validation-to-test evidence."""
+    from quantcredit.visuals import plot_evaluation
+
+    return plot_evaluation(self)
+
+
 def fit_baseline(
   examples: DataFrame,
   *,
@@ -173,11 +221,13 @@ def fit_baseline(
   depth, learning_rate, n_estimators = selected
   classifier = _classifier(depth, learning_rate, n_estimators, seed)
   classifier.fit(transformed_train, train_y)
-  reference_scores = np.full(len(validation_y), float(train_y.mean()))
+  reference_probability = float(train_y.mean())
+  reference_scores = np.full(len(validation_y), reference_probability)
   return Baseline(
     preprocessor=preprocessor,
     classifier=classifier,
     candidates=candidates,
+    reference_probability=reference_probability,
     reference=_metrics(validation_y, reference_scores),
     calibration=_calibration(validation_y, selected_scores),
     importance=_importance(
@@ -188,6 +238,53 @@ def fit_baseline(
       seed,
     ),
   )
+
+
+def evaluate_baseline(
+  baseline: Baseline,
+  examples: DataFrame,
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path = DEFAULT_CACHE,
+) -> Evaluation:
+  """Apply one frozen baseline to a matched, explicitly derived test fold."""
+  baseline._validate_selection()
+  revealed = materialize_test_examples(manifest, split, cache)
+  test = _binary_fold(_match_held_out_test(examples, revealed), "test")
+  test_x, test_y = _xy(test)
+  transformed_test = baseline.preprocessor.transform(test_x)
+  scores = baseline.classifier.predict_proba(transformed_test)[:, 1]
+  reference_scores = np.full(len(test_y), baseline.reference_probability)
+  return Evaluation(
+    baseline=baseline,
+    cutoff=split.test_cutoff,
+    labels_observed_through=split.test_labels_observed_through,
+    metrics=_metrics(test_y, scores),
+    reference=_metrics(test_y, reference_scores),
+    calibration=_calibration(test_y, scores),
+  )
+
+
+def _match_held_out_test(examples: DataFrame, revealed: DataFrame) -> DataFrame:
+  required = {"loan_id", "cutoff", "fold", "target_status", "target", *FEATURE_COLUMNS}
+  missing = sorted(required - set(examples.columns))
+  if missing:
+    raise ValueError(f"examples are missing required columns: {', '.join(missing)}")
+  held_out = examples.loc[examples["fold"] == "test"]
+  if held_out.empty:
+    raise ValueError("examples require a held-out test population")
+  if held_out["target"].notna().any() or set(held_out["target_status"]) != {"held_out"}:
+    raise ValueError("test outcomes must remain held out before evaluation")
+
+  match_columns = ["loan_id", "cutoff", *FEATURE_COLUMNS]
+  expected = held_out[match_columns].sort_values("loan_id", ignore_index=True)
+  observed = revealed[match_columns].sort_values("loan_id", ignore_index=True)
+  if expected.shape != observed.shape:
+    raise ValueError("revealed test population does not match held-out features")
+  same = expected.eq(observed) | (expected.isna() & observed.isna())
+  if not bool(same.to_numpy().all()):
+    raise ValueError("revealed test population does not match held-out features")
+  return revealed
 
 
 def _parameters(

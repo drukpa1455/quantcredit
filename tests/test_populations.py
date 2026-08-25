@@ -11,7 +11,12 @@ from urllib.parse import urlparse
 import pandas as pd
 
 import quantcredit as qc
-from quantcredit.populations import FEATURE_COLUMNS, FEATURE_LINEAGE, LEAKAGE_FIELDS
+from quantcredit.populations import (
+  FEATURE_COLUMNS,
+  FEATURE_LINEAGE,
+  LEAKAGE_FIELDS,
+  materialize_test_examples,
+)
 from quantcredit.source import Filing, load_manifest
 from quantcredit.splits import causal_split
 
@@ -52,6 +57,16 @@ class PopulationTests(unittest.TestCase):
     test = examples.loc[examples["fold"] == "test"]
     self.assertTrue(test["target"].isna().all())
     self.assertEqual(set(test["target_status"]), {"held_out"})
+
+    revealed = materialize_test_examples(self.manifest, self.split, self.cache)
+    match = ["loan_id", "cutoff", *FEATURE_COLUMNS]
+    pd.testing.assert_frame_equal(
+      test[match].reset_index(drop=True),
+      revealed[match].reset_index(drop=True),
+      check_dtype=False,
+    )
+    self.assertEqual(revealed["target"].notna().sum(), 4)
+    self.assertEqual(set(revealed["target_status"]), {"positive", "negative"})
     self.assertEqual(set(FEATURE_COLUMNS), set(examples.columns[5:]))
     self.assertTrue(set(LEAKAGE_FIELDS).isdisjoint(examples.columns))
     unsafe = set(LEAKAGE_FIELDS) - {"reportingPeriodEndingDate"}

@@ -103,6 +103,14 @@ baseline.calibration
 baseline.plot()
 
 
+# %% 07a — Frozen out-of-time evaluation
+# How does the unchanged validation-selected model perform at the later cutoff?
+test = qc.evaluate(baseline, examples, manifest, split)
+test.summary()
+test.calibration
+test.plot()
+
+
 # %% 08 — Expected-loss interpretation
 # Do probability, exposure, and realized severity support an economic claim?
 

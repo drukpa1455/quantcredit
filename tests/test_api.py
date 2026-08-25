@@ -10,6 +10,7 @@ import quantcredit as qc
 class ApiTests(unittest.TestCase):
   def test_exposes_memorable_research_entrypoints(self) -> None:
     self.assertEqual(qc.audit.__module__, "quantcredit.api")
+    self.assertEqual(qc.evaluate.__module__, "quantcredit.api")
     self.assertEqual(qc.examples.__module__, "quantcredit.api")
     self.assertEqual(qc.fit.__module__, "quantcredit.api")
     self.assertEqual(qc.split.__module__, "quantcredit.api")
