@@ -292,6 +292,10 @@ does not prove, and what would reopen the decision.
   model, threshold, or conclusion implicitly, and no generic "find insights" or
   "solve dataset" interface exists. The common call uses minimal required
   arguments and safe defaults, while remaining simple enough to reproduce live.
+- **INV-15 — Decision honesty:** Validation selection evidence remains distinct
+  from investment returns. Purchase price, default, prepayment, recovery, and
+  waterfall assumptions are explicit inputs; no serious-delinquency score is
+  silently relabeled as ultimate default or fair value.
 
 - **AC-1 — Data boundary:** A clean-revision experiment validates all twelve
   Ford 2024-A reports for 2025, emits aggregate schema/identity/transition/
@@ -327,6 +331,13 @@ does not prove, and what would reopen the decision.
   log loss, Brier score, score-band calibration, and exposure-weighted expected
   loss using small transparent functions that can be explained without the
   package.
+- **AC-10 — Decision frontier:** On validation only, the notebook compares the
+  frozen GBM with declared simple rules at matched retained balance and reports
+  coupon, event, and event-exposure tradeoffs without retaining loan rows.
+- **AC-11 — Scenario waterfall:** Pure tested functions project collateral cash
+  flows from explicit assumptions, allocate cash senior-first and losses
+  junior-first, and report tranche cash, loss, ending balance, and scenario
+  yield. Every output is labeled as a scenario rather than a valuation claim.
 
 ## Technical design
 
@@ -857,7 +868,9 @@ semantic error.
 
 - **Outcome:** The canonical notebook and transparent helper modules produce a
   causally valid shallow-GBM baseline, calibration and error diagnostics, and
-  exposure-aware economic interpretation suitable for rehearsal and research.
+  exposure-aware decision system: model interpretation, matched-balance loan
+  selection, constrained pool construction, and an assumption-driven tranche
+  waterfall.
 - **Depends on:** Stage 1 accepts at least one target with sufficient events and
   uncensored horizon coverage; source expansion is pinned separately if twelve
   reports cannot support the chosen horizon and temporal folds.
@@ -1311,7 +1324,101 @@ of total balance but `58.5%` of modeled event exposure and `64.5%` of observed
 event-loan balance. At an illustrative, externally assumed `60%` LGD, scenario
 loss is `$4.124M`, or `0.5157%` of exposure. This is not an ultimate-loss estimate.
 
-**Next issue:** Define matched cohort controls before introducing graph topology.
+**Next issue:** Explain validation behavior and residual cohorts before turning
+the model score into a selection rule.
+
+#### Issue 2.7: Explain validation behavior and residual cohorts
+
+**What and why:** Expose the direction, calibration, and stability of the frozen
+GBM before using its score in a capital-allocation rule. Permutation importance
+identifies useful fields but not the shape of their association or the cohorts
+where predictions fail.
+
+**Status:** Complete; implementation revision recorded after delivery.
+
+**Decision:** Aggregate validation rows into quantile bands for explicitly named
+numeric features and into sufficiently populated values for explicitly named
+categorical cohorts. Report samples, events, mean score, event rate, and residual
+`event_rate - mean_score`. These are predictive diagnostics, not causal effects.
+
+#### Issue 2.8: Compare matched-balance loan-selection policies
+
+**What and why:** Convert ranking evidence into a decision curve. AUROC cannot
+show whether excluding a small balance share removes economically meaningful
+event exposure or merely small loans.
+
+**Status:** Complete; implementation revision recorded after delivery.
+
+**Decision:** On validation only, compare the frozen GBM with declared simple
+rules at common excluded-balance shares. Report retained balance, weighted
+coupon, events, observed event-loan balance, and event-exposure avoided. The
+result is a retrospective policy frontier, not historical trading alpha; no
+purchase prices are observed. A deterministic greedy selector may demonstrate
+explicit budget and concentration constraints, but it must return aggregate
+evidence rather than consumer rows. **INV-4**, **INV-9**, **AC-10**
+
+#### Issue 2.9: Project explicit collateral scenarios
+
+**What and why:** Separate the model's observed event horizon from the missing
+cash-flow assumptions required for pool and tranche analysis.
+
+**Status:** Complete; implementation revision recorded after delivery.
+
+**Decision:** A pure monthly collateral projection accepts balance, coupon,
+remaining term, annual default and prepayment rates, recovery rate, and recovery
+lag. It emits scheduled interest, scheduled principal, prepayment, default,
+recovery, net loss, and ending balance. None of default, prepayment, or recovery
+is estimated from the current panel. **INV-15**
+
+#### Issue 2.10: Run a transparent sequential waterfall
+
+**What and why:** Show how identical collateral loss can affect equity,
+mezzanine, and senior claims differently without pretending to reproduce an
+unread legal agreement.
+
+**Status:** Complete; implementation revision recorded after delivery.
+
+**Decision:** A simple declared waterfall pays fees, tranche interest, and
+principal senior-first; allocates principal loss junior-first; and sends residual
+interest to the junior-most tranche. Tranche balances, coupons, and purchase
+prices are explicit. Results report cash, loss, ending balance, and scenario IRR,
+and state that triggers, reserves, advances, and deal-specific legal terms are
+absent. **AC-11**
+
+**Observed result:** On the pinned validation fold (`32,203` loans and
+`$956.24M` observed balance), excluding the highest-risk `10.0%` of balance by
+the frozen GBM avoided `63.3%` of observed event-loan exposure. At matched
+balance, the strongest simple rule, delinquency days, avoided `49.3%`; current
+LTV avoided `26.5%`, and credit score avoided `13.5%`. The GBM frontier also
+gave up coupon: retained weighted coupon fell from `4.964%` to `4.822%`.
+
+Feature profiles preserve tied values rather than manufacturing quantile shape:
+delinquency days therefore formed one band on this fold. The largest eligible
+cohort residual was Oregon at `+1.00` percentage point (`267` samples, `5`
+events), closely followed by Idaho; these small-cell diagnostics are reopening
+signals, not geographic or causal conclusions.
+
+The deterministic demonstration pool selected `$199,999,883` against a `$200M`
+budget (`99.9999%` utilization), with every state below its declared `10%`
+balance cap. It had a `0.2421%` exposure-weighted three-report event probability
+and `17` observed events. These are retrospective validation diagnostics, not
+investment performance.
+
+The notebook's separate `$100M` illustrative scenario uses declared `4%`
+annual defaults, `15%` annual prepayments, `40%` recoveries, and a three-month
+recovery lag. Its simple sequential waterfall leaves senior and mezzanine
+principal unimpaired and allocates `$3.807M` of net loss to equity. Scenario
+yields are shown only because purchase prices are explicit; no current-panel
+field estimates those assumptions, and the engine omits triggers, reserves,
+advances, overcollateralization, and legal-document terms.
+
+**Stage 2 closure:** Issues 2.7 through 2.10 run from the canonical notebook,
+synthetic contracts and full repository checks pass, and pinned-panel validation
+evidence is recorded above. The classical decision system is frozen as the
+incumbent that Stage 3 must beat.
+
+**Next issue after Stage 2:** Define matched cohort controls before introducing
+graph topology.
 
 ### Stage 3: Matched static GBM/GINE experiment
 
@@ -1366,6 +1473,7 @@ loss is `$4.124M`, or `0.5157%` of exposure. This is not an ultimate-loss estima
 | INV-11–INV-13, AC-8 | Stage 1 / Issues 1.1 and 1.3 | Stable markers and clean-kernel execution through section `04` |
 | AC-1, AC-2 | Stage 1 / Issue 1.3 | Revision-bound data audit and research record |
 | INV-4, INV-14, AC-9 | Stage 2 | Temporal split, train-only lineage, metric tests, and notebook replay |
+| INV-15, AC-10, AC-11 | Stage 2 | Validation policy frontier, explicit scenario inputs, and waterfall tests |
 | AC-4 | Stage 2 | Revision-bound classical-baseline evidence |
 | INV-4–INV-6 | Stage 3 | Split, feature-lineage, and independent-score tests |
 | AC-3–AC-5 | Stages 2–3 | Matched validation controls and frozen test evidence |

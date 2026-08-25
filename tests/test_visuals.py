@@ -14,11 +14,15 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 
 from quantcredit.audits import Audit
 from quantcredit.baselines import Baseline, Evaluation, Exposure, Metrics
+from quantcredit.cashflows import Tranche, project_collateral, run_waterfall
+from quantcredit.decisions import Decision
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
 from quantcredit.visuals import (
   plot_audit,
   plot_baseline,
+  plot_deal,
+  plot_decision,
   plot_examples,
   plot_sensitivity,
   plot_split,
@@ -37,6 +41,71 @@ class VisualTests(unittest.TestCase):
       self.assertEqual(mpl.rcParams["figure.facecolor"], "#212c2a")
 
     self.assertEqual(mpl.rcParams["figure.facecolor"], before)
+
+  def test_decision_figure_exposes_effects_residuals_and_frontier(self) -> None:
+    effects = pd.DataFrame(
+      [
+        {
+          "feature": feature,
+          "band": str(band),
+          "mean_score": 0.01 * band,
+          "event_rate": 0.012 * band,
+        }
+        for feature in ("credit_score", "current_ltv")
+        for band in range(1, 4)
+      ]
+    )
+    cohorts = pd.DataFrame(
+      {
+        "feature": ["geography", "geography"],
+        "value": ["east", "west"],
+        "residual": [0.01, -0.005],
+      }
+    )
+    frontier = pd.DataFrame(
+      [
+        {
+          "policy": policy,
+          "target_excluded_share": share,
+          "excluded_balance_share": share,
+          "event_exposure_avoided": share * lift,
+        }
+        for policy, lift in (("GBM score", 2.0), ("Lowest credit score", 1.3))
+        for share in (0.0, 0.1, 0.2)
+      ]
+    )
+    decision = Decision(effects, cohorts, frontier)
+
+    figure = decision.plot()
+
+    self.assertEqual(len(plot_decision(decision).axes), 4)
+    self.assertIn("GBM avoids 20.0%", figure.get_suptitle())
+    self.assertIn("Matched-balance", figure.axes[3].get_title())
+
+  def test_deal_figure_exposes_cash_timing_and_tranche_runoff(self) -> None:
+    collateral = project_collateral(
+      balance=100,
+      annual_rate=0.08,
+      months=12,
+      annual_default_rate=0.04,
+      annual_prepayment_rate=0.10,
+      recovery_rate=0.40,
+    )
+    deal = run_waterfall(
+      collateral,
+      (Tranche("Senior", 80, 0.04), Tranche("Equity", 20, 0)),
+    )
+
+    figure = deal.plot()
+
+    self.assertEqual(len(plot_deal(deal).axes), 2)
+    self.assertEqual(
+      {axis.get_title() for axis in figure.axes},
+      {
+        "Collateral cash and loss timing",
+        "Tranche principal runoff · senior paid first",
+      },
+    )
 
   def test_audit_figure_exposes_all_four_aggregate_questions(self) -> None:
     audit = self._audit()
