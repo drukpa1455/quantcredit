@@ -4,8 +4,7 @@ Decision state: Decided
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
 Inspected TinyMesh revision: `dad041a41cf7df7b379dc0e1a9769d6805a12042`
-Sources: 2026-08-22 through 2026-08-23 public research research-preparation
-discussion; SEC asset-level disclosure; Zed REPL contract; pinned PyG Temporal
+Sources: SEC asset-level disclosure; Zed REPL contract; pinned PyG Temporal
 reference; Caylent `tufte-data-viz` revision
 `ae7ca0de7819db83241b24a2618810d5f1171145`
 
@@ -43,7 +42,7 @@ gate passes.
 name also avoids prejudging graphs as the answer: tabular, survival, calibration,
 and portfolio research are first-class outcomes even if no graph model wins.
 
-### Can one artifact serve learning, research, and research rehearsal?
+### Can one artifact serve learning, research, and reproducible execution?
 
 - **Decision informed:** Whether the project should own an `.ipynb`, a plain
   script, or both, and what belongs in reusable helper modules.
@@ -73,10 +72,9 @@ and portfolio research are first-class outcomes even if no graph model wins.
   narrative. Its titled `# %%` sections own questions, invocations, compact
   observations, and conclusions. `src/quantcredit/` owns deterministic reusable
   operations. The notebook never owns a second implementation of stable logic.
-- **Decision:** The toolkit is executable study material, not an assumed
-  analysis dependency. Every helper has a small explicit contract and may be
-  explained or rewritten directly if an research environment disallows
-  personal packages.
+- **Decision:** The toolkit is executable study material, not an opaque runtime
+  dependency. Every helper has a small explicit contract that can be explained
+  or reconstructed from the documented operation.
 
 ## Research
 
@@ -231,12 +229,8 @@ does not prove, and what would reopen the decision.
 - A second hand-maintained `.ipynb`, notebook-output snapshots in Git, or a
   Jupytext synchronization requirement. Exported notebooks and HTML are
   disposable presentation artifacts.
-- A hidden "solve the analysis" function or reliance on `quantcredit` being
-  installable during an research. The project teaches transparent operations;
-  it does not bypass analysis rules.
-- Using an agent, external reference, or personal code when an analysis does
-  not permit it. The notebook is always preparation material and becomes a live
-  aid only under the researcher's stated rules.
+- An opaque one-call analysis function that hides the transformations and
+  assumptions the project is meant to expose.
 - Private bureau, bank-account, email, address, identity, or customer data.
 - Scraping all EDGAR filings or checking raw source files into Git.
 - HGT, TGN, EvolveGCN, AGCRN, arbitrary changing topology, or a model zoo.
@@ -432,7 +426,7 @@ quantcredit/
 Files appear only when their owner becomes necessary. The names above define
 responsibilities, not a requirement to create empty modules in Stage 1.
 
-The environment deliberately matches likely research tools: pandas for tables,
+The environment uses common open-source research tools: pandas for tables,
 scikit-learn for preprocessing, metrics, and the portable shallow GBM,
 Matplotlib for deterministic figure ownership, and Seaborn for axes-level
 statistical vocabulary. XGBoost remains a useful research comparison but is
@@ -604,8 +598,8 @@ The first possible temporal promotion questions are deliberately separate:
 - **D-13:** Practice with pandas, scikit-learn's classical gradient boosting,
   Matplotlib, and Seaborn rather than inventing table, metric, booster, or
   plotting layers. `quantcredit` helpers compose these libraries around
-  credit-specific invariants and remain small enough to rewrite or explain
-  during an analysis. XGBoost practice is separate because its resolved ARM
+  credit-specific invariants and remain small enough to explain or reconstruct
+  directly. XGBoost practice is separate because its resolved ARM
   macOS wheel requires an unpinned host OpenMP runtime.
 - **D-14:** Pair each material research table with one canonical aggregate
   visual that reveals the pattern the table quantifies. Figures never become a
@@ -1142,7 +1136,8 @@ The first complete implementation used the earlier classical gradient booster
 and required 1,610 seconds for 36 fits, excluding the source scan. That invalidated
 it as the workbench owner. The accepted histogram implementation evaluates the
 same declared hypothesis in 337 seconds and leaves the simple call explicit and
-bounded; a timed analysis can pass narrower tuples without changing semantics.
+bounded; a quick exploratory run can pass narrower tuples without changing
+semantics.
 
 **Real validation evidence:**
 
@@ -1348,8 +1343,8 @@ claiming ultimate net loss from the bounded recovery horizon.
   originator claims require an issuer-held-out test; the Stage 1 pilot cannot
   support them. Blocks only generalization claims, not Stage 1.
 - **O-3 — Primary decision statistic:** Recommend validation log loss with
-  calibration and average precision as co-gates; report AUROC for research and
-  industry familiarity. Freeze the economic/ranking statistic after Stage 1
+  calibration and average precision as co-gates; report AUROC for industry
+  familiarity. Freeze the economic/ranking statistic after Stage 1
   establishes target prevalence and available exposure/loss fields. Blocks the
   Stage 2 protocol.
 - **O-4 — Runtime candidate:** No recommendation is binding before Stage 3. If

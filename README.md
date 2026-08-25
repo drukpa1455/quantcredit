@@ -59,8 +59,8 @@ operation owns derivation and evaluation of those outcomes, and returns only
 aggregate metrics and calibration. September is out of time but not described
 as blind because its marginal event rate was historically observed.
 
-The default baseline maps a declared 36-candidate validation surface. During a
-short analysis, narrow the same operation explicitly—for example,
+The default baseline maps a declared 36-candidate validation surface. For a
+quick exploratory run, narrow the same operation explicitly—for example,
 `qc.fit(examples, depths=(2, 3), learning_rates=(0.05,), estimators=(120,))`.
 
 `quantcredit.visuals.plot_audit`, `plot_split`, and `plot_examples` remain
@@ -75,8 +75,7 @@ uv run --locked python -m quantcredit.acquire
 ```
 
 Raw loan records, notebook outputs, and personal SEC user-agent values are not
-committed. This is research and research preparation, not underwriting or
-investment advice.
+committed. This is public research, not underwriting or investment advice.
 
 ## Reusable download
 
@@ -96,8 +95,7 @@ receipt = fetch(
 
 The defaults allow 30 seconds and 500 MB. Override either bound when the source
 requires it. The receipt supplies the exact byte count and SHA-256 needed to
-verify later cache reuse. analysis rules still decide whether personal helpers
-are allowed.
+verify later cache reuse.
 
 ## Plan
 
