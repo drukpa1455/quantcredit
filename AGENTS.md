@@ -5,6 +5,8 @@ and an explicit notebook shell.
 
 - `notebooks/credit_research.py` is the sole authored notebook.
 - Stable operations live in `src/quantcredit/`; notebook cells call them.
+- `docs/research/data-visualization.md` owns the repository's visual review
+  standard. Read it before creating or changing a figure.
 - Make the common path memorable and fluid: minimal required arguments, safe
   defaults, explicit overrides, and helpers simple enough to rederive live.
 - Preserve source states and causal time. Never infer outcomes from disappearance.
