@@ -1334,7 +1334,7 @@ GBM before using its score in a capital-allocation rule. Permutation importance
 identifies useful fields but not the shape of their association or the cohorts
 where predictions fail.
 
-**Status:** Complete; implementation revision recorded after delivery.
+**Status:** Implemented and evaluated at revision `d502570`.
 
 **Decision:** Aggregate validation rows into quantile bands for explicitly named
 numeric features and into sufficiently populated values for explicitly named
@@ -1347,7 +1347,7 @@ categorical cohorts. Report samples, events, mean score, event rate, and residua
 show whether excluding a small balance share removes economically meaningful
 event exposure or merely small loans.
 
-**Status:** Complete; implementation revision recorded after delivery.
+**Status:** Implemented and evaluated at revision `d502570`.
 
 **Decision:** On validation only, compare the frozen GBM with declared simple
 rules at common excluded-balance shares. Report retained balance, weighted
@@ -1362,7 +1362,7 @@ evidence rather than consumer rows. **INV-4**, **INV-9**, **AC-10**
 **What and why:** Separate the model's observed event horizon from the missing
 cash-flow assumptions required for pool and tranche analysis.
 
-**Status:** Complete; implementation revision recorded after delivery.
+**Status:** Implemented and evaluated at revision `d502570`.
 
 **Decision:** A pure monthly collateral projection accepts balance, coupon,
 remaining term, annual default and prepayment rates, recovery rate, and recovery
@@ -1376,7 +1376,7 @@ is estimated from the current panel. **INV-15**
 mezzanine, and senior claims differently without pretending to reproduce an
 unread legal agreement.
 
-**Status:** Complete; implementation revision recorded after delivery.
+**Status:** Implemented and evaluated at revision `d502570`.
 
 **Decision:** A simple declared waterfall pays fees, tranche interest, and
 principal senior-first; allocates principal loss junior-first; and sends residual
