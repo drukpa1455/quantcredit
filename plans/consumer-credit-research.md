@@ -173,9 +173,10 @@ and portfolio research are first-class outcomes even if no graph model wins.
 `quantcredit` now owns twelve pinned EX-102 documents, bounded acquisition,
 typed streaming snapshots, identity and continuity validation, an aggregate-only
 transition audit, one explicit three-report target, and executable notebook
-sections `00` through `05`, including a label-maturity-aware chronological
-split, Sapphire aggregate figures, and a past-only eligible modeling
-population. It does not yet train or evaluate the classical baseline.
+sections `00` through `07a`, including a label-maturity-aware chronological
+split, Sapphire aggregate figures, a past-only eligible modeling population,
+and a shallow validation-selected GBM with explicit frozen out-of-time
+evaluation.
 TinyMesh can express a homogeneous edge-aware loan graph and a fixed-node
 monthly segment graph, but there is no evidence that either adds useful
 information beyond a tabular model. Adding relational or dynamic-temporal APIs
@@ -1202,6 +1203,63 @@ rejected and reports a domain error when that decision is absent.
 **Next issue:** Add one explicit evaluation operation for the frozen selected
 model. Report the September result as out-of-time but marginally observed, and
 reserve blind-test language for a future untouched issuer or time slice.
+
+#### Issue 2.5: Evaluate the frozen model once out of time
+
+**What and why:** Convert the unscored September population into retained
+out-of-time evidence without reopening preprocessing, candidate generation,
+selection, or feature decisions.
+
+**Status:** Implementation and real-data evaluation complete; revision recorded
+after landing.
+
+**Decision:** `qc.evaluate(baseline, examples, manifest, split)` is the sole
+notebook test operation. It performs a new checksum-verified panel scan, derives
+outcomes only for eligible test-cutoff loans, verifies that their identities and
+past-only features match the supplied ordinary held-out population, and applies
+the already-fitted preprocessor and classifier. It returns aggregate metrics,
+constant-train-rate reference metrics, score-band calibration, and a canonical
+figure; it retains no loan identifiers, features, targets, or individual scores.
+
+The operation is deterministic and may be rerun for reproducibility, so code
+does not pretend to enforce one-time access with process state or a lock. The
+research protocol owns the one-query rule through one canonical notebook call
+and one revision-bound evidence record. September is described as out of time
+but marginally observed, never blind.
+
+**Done when:**
+
+- Test derivation is unavailable through `qc.examples(...)` and has one explicit
+  evaluation entrypoint.
+- Revealed test identities and past-only features exactly match the held-out
+  population before prediction; disagreement fails before metrics are returned.
+- Evaluation neither calls fit nor changes baseline candidates, selection,
+  preprocessing, or classifier parameters. **INV-4**
+- Output contains only aggregate AC-4 metrics and calibration; figures contain
+  no identifiers or row-level predictions. **INV-9**, **D-14**
+- Synthetic tests prove the matched-population seam and no-refit behavior; the
+  real command is run once from the frozen revision and its result is recorded.
+
+**Observed result:** The canonical notebook selected depth `2`, learning rate
+`0.05`, and `120` estimators without test outcomes. Its explicit September 30,
+2025 evaluation used labels observed through December 31 and retained 29,086
+resolved binary outcomes with 319 events (1.0967%). The frozen model achieved
+AUROC `0.8502`, average precision `0.3455`, log loss `0.04180`, and Brier score
+`0.008535`. The constant train-rate reference achieved AUROC `0.5`, average
+precision `0.01097`, log loss `0.06076`, and Brier score `0.010854` on the same
+population. The aggregate figure was inspected full-resolution: ranking was
+stable relative to validation (AUROC `0.848` to `0.850`; average precision
+`0.371` to `0.345`), while the highest score band modestly underpredicted the
+observed event rate (approximately `6.6%` versus `7.4%`). No model or feature
+decision was changed after this result.
+
+The first real execution exposed an unresolved-outcome boundary error before
+any metric was returned. The final contract matches the complete eligible test
+population, then scores only resolved positive and negative outcomes; a
+regression test preserves that distinction.
+
+**Next issue:** Interpret probability, exposure, and observable severity without
+claiming ultimate net loss from the bounded recovery horizon.
 
 ### Stage 3: Matched static GBM/GINE experiment
 

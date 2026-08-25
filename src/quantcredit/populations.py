@@ -79,17 +79,49 @@ def materialize_examples(
   split: CausalSplit,
   cache: Path = DEFAULT_CACHE,
 ) -> DataFrame:
-  """Return eligible cutoff rows while preserving non-binary outcome dispositions."""
-  expected = causal_split(manifest.report_periods, horizon_reports=split.horizon_reports)
-  if split != expected:
-    raise ValueError("causal split does not match the source manifest")
-
-  period_index = {period: index for index, period in enumerate(manifest.report_periods)}
+  """Return causal rows with test outcomes held out."""
   folds = {
     **{cutoff: "train" for cutoff in split.train_cutoffs},
     split.validation_cutoff: "validation",
     split.test_cutoff: "test",
   }
+  return _materialize_examples(
+    manifest,
+    split,
+    cache,
+    folds=folds,
+    held_out=frozenset({split.test_cutoff}),
+  )
+
+
+def materialize_test_examples(
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path = DEFAULT_CACHE,
+) -> DataFrame:
+  """Derive outcomes only for the explicit test evaluation boundary."""
+  return _materialize_examples(
+    manifest,
+    split,
+    cache,
+    folds={split.test_cutoff: "test"},
+    held_out=frozenset(),
+  )
+
+
+def _materialize_examples(
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path,
+  *,
+  folds: dict[date, str],
+  held_out: frozenset[date],
+) -> DataFrame:
+  expected = causal_split(manifest.report_periods, horizon_reports=split.horizon_reports)
+  if split != expected:
+    raise ValueError("causal split does not match the source manifest")
+
+  period_index = {period: index for index, period in enumerate(manifest.report_periods)}
   histories: dict[AssetKey, list[LoanState | None]] = {}
   cutoffs: dict[tuple[AssetKey, date], LoanSnapshot] = {}
   validator = SnapshotValidator()
@@ -109,7 +141,7 @@ def materialize_examples(
   for (asset, cutoff), snapshot in cutoffs.items():
     history = histories[asset]
     index = period_index[cutoff]
-    if cutoff == split.test_cutoff:
+    if cutoff in held_out:
       if not eligible_at_cutoff(history[index]):
         continue
       target_status = "held_out"
