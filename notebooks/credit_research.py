@@ -113,6 +113,12 @@ test.plot()
 
 # %% 08 — Expected-loss interpretation
 # Do probability, exposure, and realized severity support an economic claim?
+exposure = test.exposure
+exposure.summary()
+exposure.bands
+# Illustrative sensitivity only: this bounded panel does not estimate LGD.
+exposure.scenario(lgd=0.60)
+exposure.plot()
 
 
 # %% 09 — Matched cohort controls

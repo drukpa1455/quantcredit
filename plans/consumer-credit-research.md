@@ -1273,6 +1273,46 @@ regression test preserves that distinction.
 **Next issue:** Interpret probability, exposure, and observable severity without
 claiming ultimate net loss from the bounded recovery horizon.
 
+#### Issue 2.6: Bound the expected-loss claim
+
+**What and why:** Translate the frozen probability estimate into economic units
+without silently treating a serious-delinquency event, cutoff balance, or partial
+recovery history as ultimate net loss.
+
+**Status:** Implemented at revision `e16ce0a`; pending delivery.
+
+**Decision:** The frozen evaluation now owns one aggregate `Exposure` result.
+Observed cutoff `ending_balance` is the EAD proxy. `PD x EAD` is named expected
+event exposure, never expected loss. Because the target includes 60+ delinquency
+and the panel ends before recoveries season, LGD remains unidentified. A loss
+number is available only through `exposure.scenario(lgd=...)`, which validates
+and labels the caller's assumption. No missing balance is imputed for dollar
+analysis, and no identifier, target, feature row, or individual score is retained.
+
+**Done when:**
+
+- The test evaluation reports exposure coverage, total cutoff balance,
+  exposure-weighted PD, expected event exposure, and observed event-loan balance
+  by the same score bands used for calibration. **AC-9**
+- LGD outside `[0, 1]` fails, and every loss output states that it is a scenario
+  rather than estimated ultimate net loss. **INV-9**
+- The canonical notebook exposes `exposure.summary()`, `exposure.bands`, one
+  explicit LGD sensitivity, and `exposure.plot()` without row-level output.
+  **AC-8**, **D-14**
+- Synthetic tests cover missing and invalid exposure, scenario arithmetic, and
+  aggregate-only rendering; the pinned panel is replayed end to end.
+
+**Observed result:** All 29,086 resolved September test loans had observed
+nonnegative cutoff balances totaling `$799.64M`. The frozen model produced an
+exposure-weighted three-report event probability of `0.8595%`, or `$6.873M` of
+expected event exposure, versus `$8.467M` of cutoff balance attached to loans
+that actually entered the target event. The highest score band held only `8.9%`
+of total balance but `58.5%` of modeled event exposure and `64.5%` of observed
+event-loan balance. At an illustrative, externally assumed `60%` LGD, scenario
+loss is `$4.124M`, or `0.5157%` of exposure. This is not an ultimate-loss estimate.
+
+**Next issue:** Define matched cohort controls before introducing graph topology.
+
 ### Stage 3: Matched static GBM/GINE experiment
 
 - **Outcome:** Determine whether true typed relations add out-of-time predictive

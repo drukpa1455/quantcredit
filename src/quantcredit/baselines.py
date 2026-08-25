@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from itertools import product
-from math import sqrt
+from math import isfinite, sqrt
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -57,6 +57,55 @@ class Metrics:
   average_precision: float
   log_loss: float
   brier_score: float
+
+
+@dataclass(frozen=True)
+class Exposure:
+  """Aggregate PD x observed-balance evidence, without an inferred LGD."""
+
+  samples: int
+  exposure_samples: int
+  total_exposure: float
+  expected_event_exposure: float
+  observed_event_exposure: float
+  bands: DataFrame
+
+  @property
+  def coverage(self) -> float:
+    return self.exposure_samples / self.samples
+
+  @property
+  def weighted_pd(self) -> float:
+    return self.expected_event_exposure / self.total_exposure
+
+  def summary(self) -> dict[str, int | float | str]:
+    return {
+      "samples": self.samples,
+      "exposure_samples": self.exposure_samples,
+      "exposure_coverage": self.coverage,
+      "total_exposure": self.total_exposure,
+      "exposure_weighted_pd": self.weighted_pd,
+      "expected_event_exposure": self.expected_event_exposure,
+      "observed_event_exposure": self.observed_event_exposure,
+      "severity": "not estimable from the bounded recovery horizon",
+    }
+
+  def scenario(self, lgd: float) -> dict[str, float | str]:
+    """Scale expected event exposure by an explicit, unevaluated LGD assumption."""
+    if not isfinite(lgd) or not 0 <= lgd <= 1:
+      raise ValueError("lgd must be a finite value in [0, 1]")
+    return {
+      "assumed_lgd": lgd,
+      "expected_loss": self.expected_event_exposure * lgd,
+      "expected_loss_rate": self.weighted_pd * lgd,
+      "status": "scenario, not an estimated ultimate net loss",
+    }
+
+  def plot(self) -> Figure:
+    """Render aggregate exposure concentration and event-exposure calibration."""
+    from quantcredit.visuals import plot_exposure
+
+    return plot_exposure(self)
 
 
 @dataclass(frozen=True)
@@ -165,6 +214,7 @@ class Evaluation:
   metrics: Metrics
   reference: Metrics
   calibration: DataFrame
+  exposure: Exposure
 
   def summary(self) -> dict[str, Any]:
     return {
@@ -177,6 +227,7 @@ class Evaluation:
       },
       "metrics": asdict(self.metrics),
       "reference": asdict(self.reference),
+      "exposure": self.exposure.summary(),
     }
 
   def plot(self) -> Figure:
@@ -262,6 +313,7 @@ def evaluate_baseline(
     metrics=_metrics(test_y, scores),
     reference=_metrics(test_y, reference_scores),
     calibration=_calibration(test_y, scores),
+    exposure=_exposure(test_y, scores, test["ending_balance"]),
   )
 
 
@@ -456,11 +508,7 @@ def _calibration(
   bands: int = 10,
 ) -> DataFrame:
   frame = DataFrame({"target": target, "score": scores})
-  frame["band"] = pd.qcut(
-    frame["score"].rank(method="first"),
-    q=min(bands, len(frame)),
-    labels=False,
-  )
+  frame["band"] = _score_bands(frame["score"], bands) - 1
   grouped = frame.groupby("band", observed=True)
   result = grouped.agg(
     samples=("target", "size"),
@@ -471,6 +519,63 @@ def _calibration(
   result.index = result.index.astype(int) + 1
   result.index.name = "score_band"
   return result.reset_index()
+
+
+def _exposure(
+  target: NDArray[np.int64],
+  scores: NDArray[np.float64],
+  exposure: pd.Series[Any],
+  *,
+  bands: int = 10,
+) -> Exposure:
+  """Aggregate PD x cutoff balance while leaving unobserved LGD explicit."""
+  values = pd.to_numeric(exposure, errors="coerce").to_numpy(dtype=np.float64)
+  finite = np.isfinite(values)
+  if np.any(values[finite] < 0):
+    raise ValueError("ending_balance cannot be negative")
+  if not finite.any() or float(values[finite].sum()) <= 0:
+    raise ValueError("expected-loss interpretation requires observed positive exposure")
+
+  frame = DataFrame({"target": target, "score": scores, "exposure": values})
+  frame["score_band"] = _score_bands(frame["score"], bands)
+  records = []
+  for score_band, group in frame.groupby("score_band", observed=True):
+    observed = group.loc[np.isfinite(group["exposure"])]
+    total = float(observed["exposure"].sum())
+    expected = float((observed["score"] * observed["exposure"]).sum())
+    records.append(
+      {
+        "score_band": int(cast(Any, score_band)),
+        "samples": len(group),
+        "events": int(group["target"].sum()),
+        "exposure_samples": len(observed),
+        "total_exposure": total,
+        "mean_pd": float(group["score"].mean()),
+        "exposure_weighted_pd": expected / total if total else float("nan"),
+        "expected_event_exposure": expected,
+        "observed_event_exposure": float(
+          (observed["target"] * observed["exposure"]).sum()
+        ),
+      }
+    )
+  result = DataFrame(records)
+  expected = float(result["expected_event_exposure"].sum())
+  return Exposure(
+    samples=len(frame),
+    exposure_samples=int(finite.sum()),
+    total_exposure=float(result["total_exposure"].sum()),
+    expected_event_exposure=expected,
+    observed_event_exposure=float(result["observed_event_exposure"].sum()),
+    bands=result,
+  )
+
+
+def _score_bands(scores: pd.Series[Any], bands: int) -> pd.Series[Any]:
+  return pd.qcut(
+    scores.rank(method="first"),
+    q=min(bands, len(scores)),
+    labels=False,
+  ).astype(int) + 1
 
 
 def _importance(
