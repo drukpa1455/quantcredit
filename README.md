@@ -8,7 +8,8 @@ what the records mean, then builds a shallow gradient-boosted baseline, and only
 then asks whether relational structure adds information.
 
 ```text
-SEC filings -> loan states -> causal target -> shallow GBM -> graph controls
+SEC filings -> causal target -> shallow GBM -> decision frontier -> cash waterfall
+                                                              -> graph controls
 ```
 
 ## Notebook
@@ -51,6 +52,13 @@ baseline.plot()
 test = qc.evaluate(baseline, examples, manifest, split)
 test.summary()
 test.plot()
+
+decision = qc.decide(baseline, examples)
+decision.frontier
+decision.plot()
+
+pool = qc.select(baseline, examples, 200_000_000, limits={"geography": 0.10})
+pool.summary()
 ```
 
 Ordinary materialization exposes train and validation outcomes but marks every
@@ -58,6 +66,11 @@ eligible test row as `held_out` with a missing target. The later explicit test
 operation owns derivation and evaluation of those outcomes, and returns only
 aggregate metrics and calibration. September is out of time but not described
 as blind because its marginal event rate was historically observed.
+
+The decision frontier is retrospective validation evidence: it compares the
+frozen GBM with simple rules at matched excluded balance. It is not a return,
+price, or underwriting claim. The notebook then keeps a separate, fully
+declared collateral and tranche scenario to demonstrate cash-flow mechanics.
 
 The default baseline maps a declared 36-candidate validation surface. For a
 quick exploratory run, narrow the same operation explicitly—for example,

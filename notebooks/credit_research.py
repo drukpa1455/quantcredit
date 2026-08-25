@@ -121,6 +121,52 @@ exposure.scenario(lgd=0.60)
 exposure.plot()
 
 
+# %% 08a — Validation decision frontier
+# Which past-only effects remain, and does the GBM beat simple rules at matched balance?
+decision = qc.decide(baseline, examples)
+decision.effects
+decision.cohorts.head(20)
+decision.frontier
+decision.plot()
+
+
+# %% 08b — Constrained validation pool
+# What would a deterministic low-score pool look like under an explicit geography cap?
+# This is retrospective selection evidence, not investment performance.
+pool = qc.select(
+  baseline,
+  examples,
+  budget=200_000_000,
+  limits={"geography": 0.10},
+)
+pool.summary()
+pool.allocations
+
+
+# %% 08c — Illustrative collateral and tranche scenario
+# How do declared hazards and recoveries flow through a transparent capital structure?
+collateral = qc.project(
+  balance=100_000_000,
+  annual_rate=0.12,
+  months=60,
+  annual_default_rate=0.04,
+  annual_prepayment_rate=0.15,
+  recovery_rate=0.40,
+  recovery_lag=3,
+)
+deal = qc.waterfall(
+  collateral,
+  (
+    qc.Tranche("Senior", 75_000_000, 0.05, price=74_000_000),
+    qc.Tranche("Mezzanine", 15_000_000, 0.08, price=13_500_000),
+    qc.Tranche("Equity", 10_000_000, 0.00, price=8_000_000),
+  ),
+  annual_fee_rate=0.01,
+)
+deal.summary()
+deal.plot()
+
+
 # %% 09 — Matched cohort controls
 # Does flattened past-only context improve the same loans and temporal folds?
 

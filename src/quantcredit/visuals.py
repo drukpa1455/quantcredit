@@ -26,6 +26,8 @@ from quantcredit.splits import CausalSplit
 
 if TYPE_CHECKING:
   from quantcredit.baselines import Baseline, Evaluation, Exposure
+  from quantcredit.cashflows import Deal
+  from quantcredit.decisions import Decision
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
 _COLORS = {
@@ -440,6 +442,205 @@ def plot_exposure(exposure: Exposure) -> Figure:
     )
     axes[1].yaxis.set_major_formatter(StrMethodFormatter("${x:,.0f}"))
     return figure
+
+
+def plot_decision(decision: Decision) -> Figure:
+  """Show validation feature shape, residual cohorts, and selection efficiency."""
+  features = list(dict.fromkeys(decision.effects["feature"]))
+  if len(features) < 2:
+    raise ValueError("decision figure requires at least two effect features")
+  target = decision.frontier.loc[
+    decision.frontier["target_excluded_share"].sub(0.10).abs().idxmin(),
+    "target_excluded_share",
+  ]
+  comparison = decision.frontier.loc[decision.frontier["target_excluded_share"] == target]
+  model = float(
+    comparison.loc[comparison["policy"] == "GBM score", "event_exposure_avoided"].iloc[0]
+  )
+  simple = float(
+    comparison.loc[comparison["policy"] != "GBM score", "event_exposure_avoided"].max()
+  )
+  with sapphire():
+    figure, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
+    figure.suptitle(
+      (
+        f"At {float(cast(Any, target)):.0%} excluded balance, "
+        f"GBM avoids {model:.1%} event exposure"
+        f" vs {simple:.1%} best simple rule"
+      ),
+      fontsize=16,
+      fontweight="bold",
+    )
+    _plot_effect(axes[0, 0], decision.effects, features[0])
+    _plot_effect(axes[0, 1], decision.effects, features[1])
+    _plot_cohort_residuals(axes[1, 0], decision.cohorts)
+    _plot_frontier(axes[1, 1], decision.frontier)
+    return figure
+
+
+def plot_deal(deal: Deal) -> Figure:
+  """Show collateral cash generation and tranche balance runoff for one scenario."""
+  collateral = deal.collateral.copy()
+  collateral["principal_cash"] = (
+    collateral["scheduled_principal"]
+    + collateral["prepayment"]
+    + collateral["recovery"]
+  )
+  summary = deal.summary()
+  impaired = summary.loc[summary["loss"] > 0, "tranche"].tolist()
+  finding = "No tranche principal loss" if not impaired else f"Loss reaches {', '.join(impaired)}"
+  with sapphire():
+    figure, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True)
+    figure.suptitle(
+      f"{finding} in the declared scenario—not a deal valuation",
+      fontsize=16,
+      fontweight="bold",
+    )
+    axes[0].plot(
+      collateral["month"],
+      collateral["interest"],
+      color=_COLORS["cyan"],
+      linewidth=1.8,
+      label="Interest",
+    )
+    axes[0].plot(
+      collateral["month"],
+      collateral["principal_cash"],
+      color=_COLORS["green"],
+      linewidth=1.8,
+      label="Principal + recovery",
+    )
+    axes[0].plot(
+      collateral["month"],
+      collateral["loss"],
+      color=_COLORS["negative"],
+      linewidth=1.5,
+      linestyle="--",
+      label="Net loss",
+    )
+    axes[0].set(
+      title="Collateral cash and loss timing",
+      xlabel="Scenario month",
+      ylabel="Amount ($)",
+      xlim=(1, int(collateral["month"].max())),
+      ylim=(
+        0,
+        max(
+          float(collateral["interest"].max()),
+          float(collateral["principal_cash"].max()),
+          float(collateral["loss"].max()),
+        )
+        * 1.12,
+      ),
+    )
+    axes[0].yaxis.set_major_formatter(StrMethodFormatter("${x:,.0f}"))
+    axes[0].legend(fontsize=8)
+
+    colors = (_COLORS["cyan"], _COLORS["orange"], _COLORS["pink"], _COLORS["purple"])
+    for index, tranche in enumerate(deal.tranches):
+      frame = deal.cashflows.loc[deal.cashflows["tranche"] == tranche.name]
+      axes[1].plot(
+        frame["month"],
+        frame["ending_balance"],
+        color=colors[index % len(colors)],
+        linewidth=2,
+        label=tranche.name,
+      )
+    axes[1].set(
+      title="Tranche principal runoff · senior paid first",
+      xlabel="Scenario month",
+      ylabel="Ending tranche balance ($)",
+      xlim=(1, int(collateral["month"].max())),
+      ylim=(0, max(tranche.balance for tranche in deal.tranches) * 1.05),
+    )
+    axes[1].yaxis.set_major_formatter(StrMethodFormatter("${x:,.0f}"))
+    axes[1].legend(fontsize=8)
+    return figure
+
+
+def _plot_effect(axis: Any, effects: DataFrame, feature: str) -> None:
+  frame = effects.loc[(effects["feature"] == feature) & (effects["band"] != "missing")]
+  positions = list(range(len(frame)))
+  axis.plot(
+    positions,
+    frame["mean_score"],
+    color=_COLORS["cyan"],
+    linewidth=1.8,
+    marker="o",
+    markersize=4,
+    label="Predicted",
+  )
+  axis.plot(
+    positions,
+    frame["event_rate"],
+    color=_COLORS["orange"],
+    linewidth=1.5,
+    linestyle="--",
+    marker="x",
+    markersize=5,
+    label="Observed",
+  )
+  axis.set(
+    title=feature.replace("_", " ").title(),
+    xlabel="Validation feature band · low to high",
+    ylabel="Event probability",
+    xticks=positions,
+    xticklabels=frame["band"],
+    ylim=(
+      0,
+      max(float(frame["event_rate"].max()), float(frame["mean_score"].max()), 0.01)
+      * 1.25,
+    ),
+  )
+  axis.yaxis.set_major_formatter(PercentFormatter(1.0))
+  axis.legend(fontsize=8)
+
+
+def _plot_cohort_residuals(axis: Any, cohorts: DataFrame) -> None:
+  if cohorts.empty:
+    _empty_axis(axis, "Largest cohort calibration residuals", "No cohort meets the minimum")
+    return
+  frame = cohorts.head(10).iloc[::-1]
+  labels = [f"{row.feature}: {row.value}" for row in frame.itertuples(index=False)]
+  colors = [
+    _COLORS["negative"] if residual > 0 else _COLORS["cyan"]
+    for residual in frame["residual"]
+  ]
+  axis.barh(labels, frame["residual"], color=colors, alpha=0.82)
+  axis.axvline(0, color=_COLORS["foreground"], linewidth=0.8, alpha=0.5)
+  axis.set(
+    title="Largest cohort calibration residuals",
+    xlabel="Observed event rate - mean prediction",
+    ylabel="Past-only cohort",
+  )
+  axis.xaxis.set_major_formatter(PercentFormatter(1.0))
+  axis.grid(False)
+  axis.tick_params(axis="y", labelsize=7)
+
+
+def _plot_frontier(axis: Any, frontier: DataFrame) -> None:
+  colors = (_COLORS["accent"], _COLORS["cyan"], _COLORS["orange"], _COLORS["purple"])
+  markers = ("o", "s", "^", "x")
+  for index, (policy, frame) in enumerate(frontier.groupby("policy", sort=False)):
+    axis.plot(
+      frame["excluded_balance_share"],
+      frame["event_exposure_avoided"],
+      color=colors[index % len(colors)],
+      marker=markers[index % len(markers)],
+      linewidth=2 if policy == "GBM score" else 1.3,
+      markersize=5,
+      label=policy,
+    )
+  axis.set(
+    title="Matched-balance selection frontier",
+    xlabel="Excluded validation balance",
+    ylabel="Observed event exposure avoided",
+    xlim=(0, max(float(frontier["excluded_balance_share"].max()) * 1.05, 0.01)),
+    ylim=(0, max(float(frontier["event_exposure_avoided"].max()) * 1.12, 0.01)),
+  )
+  axis.xaxis.set_major_formatter(PercentFormatter(1.0))
+  axis.yaxis.set_major_formatter(PercentFormatter(1.0))
+  axis.legend(fontsize=7)
 
 
 def plot_sensitivity(baseline: Baseline) -> Figure:

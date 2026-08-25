@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
   from quantcredit.audits import Audit
   from quantcredit.baselines import Baseline, Evaluation
+  from quantcredit.cashflows import Deal, Tranche
+  from quantcredit.decisions import Decision, Pool
   from quantcredit.source import SourceManifest
   from quantcredit.splits import CausalSplit
 
@@ -82,3 +84,83 @@ def evaluate(
   if cache is None:
     return evaluate_baseline(baseline, examples, manifest, split)
   return evaluate_baseline(baseline, examples, manifest, split, cache)
+
+
+def decide(
+  baseline: Baseline,
+  examples: DataFrame,
+  *,
+  effects: tuple[str, ...] | None = None,
+  cohorts: tuple[str, ...] | None = None,
+  bands: int = 10,
+  min_cohort: int = 100,
+  excluded_shares: tuple[float, ...] | None = None,
+) -> Decision:
+  """Explain and compare frozen-model validation selection policies."""
+  from quantcredit.decisions import (
+    DEFAULT_COHORTS,
+    DEFAULT_EFFECTS,
+    DEFAULT_EXCLUDED_SHARES,
+    analyze_decisions,
+  )
+
+  return analyze_decisions(
+    baseline,
+    examples,
+    effects=DEFAULT_EFFECTS if effects is None else effects,
+    cohorts=DEFAULT_COHORTS if cohorts is None else cohorts,
+    bands=bands,
+    min_cohort=min_cohort,
+    excluded_shares=(
+      DEFAULT_EXCLUDED_SHARES if excluded_shares is None else excluded_shares
+    ),
+  )
+
+
+def select(
+  baseline: Baseline,
+  examples: DataFrame,
+  budget: float,
+  *,
+  limits: dict[str, float] | None = None,
+) -> Pool:
+  """Select a lowest-score validation pool under explicit concentration limits."""
+  from quantcredit.decisions import select_pool
+
+  return select_pool(baseline, examples, budget, limits=limits)
+
+
+def project(
+  *,
+  balance: float,
+  annual_rate: float,
+  months: int,
+  annual_default_rate: float,
+  annual_prepayment_rate: float,
+  recovery_rate: float,
+  recovery_lag: int = 3,
+) -> DataFrame:
+  """Project an aggregate collateral scenario from explicit constant rates."""
+  from quantcredit.cashflows import project_collateral
+
+  return project_collateral(
+    balance=balance,
+    annual_rate=annual_rate,
+    months=months,
+    annual_default_rate=annual_default_rate,
+    annual_prepayment_rate=annual_prepayment_rate,
+    recovery_rate=recovery_rate,
+    recovery_lag=recovery_lag,
+  )
+
+
+def waterfall(
+  collateral: DataFrame,
+  tranches: tuple[Tranche, ...],
+  *,
+  annual_fee_rate: float = 0.0,
+) -> Deal:
+  """Run a simple sequential waterfall over one collateral scenario."""
+  from quantcredit.cashflows import run_waterfall
+
+  return run_waterfall(collateral, tranches, annual_fee_rate=annual_fee_rate)
