@@ -10,7 +10,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from quantcredit.baselines import _compare, _metrics, evaluate_baseline, fit_baseline
+from quantcredit.baselines import _compare, _exposure, _metrics, evaluate_baseline, fit_baseline
 from quantcredit.populations import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
 
 
@@ -180,6 +180,13 @@ class BaselineTests(unittest.TestCase):
     self.assertEqual(evaluation.reference.events, 3)
     self.assertGreater(evaluation.reference.log_loss, 0)
     self.assertEqual(int(evaluation.calibration["samples"].sum()), 19)
+    self.assertEqual(evaluation.exposure.samples, 19)
+    self.assertEqual(evaluation.exposure.exposure_samples, 19)
+    self.assertGreater(evaluation.exposure.total_exposure, 0)
+    self.assertAlmostEqual(
+      evaluation.exposure.scenario(0.6)["expected_loss"],
+      evaluation.exposure.expected_event_exposure * 0.6,
+    )
     self.assertNotIn("loan_id", repr(evaluation))
     pd.testing.assert_frame_equal(baseline.candidates, before)
 
@@ -193,6 +200,36 @@ class BaselineTests(unittest.TestCase):
       self.assertRaisesRegex(ValueError, "does not match"),
     ):
       evaluate_baseline(baseline, changed, cast(Any, None), split)
+
+  def test_exposure_uses_observed_balances_and_explicit_lgd(self) -> None:
+    target = np.array([0, 1, 0, 1], dtype=np.int64)
+    scores = np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float64)
+    result = _exposure(target, scores, pd.Series([100.0, 200.0, None, 400.0]), bands=2)
+
+    self.assertEqual(result.samples, 4)
+    self.assertEqual(result.exposure_samples, 3)
+    self.assertAlmostEqual(result.coverage, 0.75)
+    self.assertAlmostEqual(result.total_exposure, 700.0)
+    self.assertAlmostEqual(result.expected_event_exposure, 210.0)
+    self.assertAlmostEqual(result.observed_event_exposure, 600.0)
+    self.assertAlmostEqual(result.weighted_pd, 0.3)
+    self.assertEqual(int(result.bands["samples"].sum()), 4)
+    self.assertEqual(int(result.bands["exposure_samples"].sum()), 3)
+    self.assertEqual(
+      result.scenario(0.5),
+      {
+        "assumed_lgd": 0.5,
+        "expected_loss": 105.0,
+        "expected_loss_rate": 0.15,
+        "status": "scenario, not an estimated ultimate net loss",
+      },
+    )
+    for lgd in (-0.1, 1.1, float("nan")):
+      with self.subTest(lgd=lgd), self.assertRaisesRegex(ValueError, "lgd"):
+        result.scenario(lgd)
+
+    with self.assertRaisesRegex(ValueError, "cannot be negative"):
+      _exposure(target, scores, pd.Series([100.0, -1.0, 200.0, 300.0]))
 
   @staticmethod
   def _examples() -> pd.DataFrame:

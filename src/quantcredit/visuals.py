@@ -25,7 +25,7 @@ from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import CausalSplit
 
 if TYPE_CHECKING:
-  from quantcredit.baselines import Baseline, Evaluation
+  from quantcredit.baselines import Baseline, Evaluation, Exposure
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
 _COLORS = {
@@ -344,6 +344,101 @@ def plot_evaluation(evaluation: Evaluation) -> Figure:
       "Test score-band calibration",
       "Test",
     )
+    return figure
+
+
+def plot_exposure(exposure: Exposure) -> Figure:
+  """Show where balance and predicted versus observed event exposure concentrate."""
+  bands = exposure.bands
+  positions = list(range(len(bands)))
+  top_share = float(bands.iloc[-1]["total_exposure"] / exposure.total_exposure)
+  top_expected_share = float(
+    bands.iloc[-1]["expected_event_exposure"] / exposure.expected_event_exposure
+  )
+  with sapphire():
+    figure, axes = plt.subplots(1, 2, figsize=(14, 5), constrained_layout=True)
+    figure.suptitle(
+      (
+        f"Top risk band holds {top_expected_share:.0%} of modeled event exposure"
+        "—not ultimate loss"
+      ),
+      fontsize=16,
+      fontweight="bold",
+    )
+
+    bars = axes[0].bar(
+      positions,
+      bands["total_exposure"],
+      color=_COLORS["cyan"],
+      alpha=0.82,
+    )
+    bars[-1].set_color(_COLORS["accent"])
+    axes[0].annotate(
+      f"{top_share:.1%} of exposure",
+      (positions[-1], float(bands.iloc[-1]["total_exposure"])),
+      xytext=(0, 7),
+      textcoords="offset points",
+      ha="center",
+      color=_COLORS["accent"],
+      fontsize=8,
+    )
+    axes[0].set(
+      title="Outstanding balance by risk band",
+      xlabel="Test score band · low to high risk",
+      ylabel="Cutoff balance ($)",
+      xticks=positions,
+      xticklabels=bands["score_band"],
+      ylim=(0, float(bands["total_exposure"].max()) * 1.18),
+    )
+    axes[0].yaxis.set_major_formatter(StrMethodFormatter("${x:,.0f}"))
+
+    predicted = axes[1].plot(
+      positions,
+      bands["expected_event_exposure"],
+      color=_COLORS["cyan"],
+      linewidth=2,
+      marker="o",
+      markersize=4,
+    )[0]
+    observed = axes[1].plot(
+      positions,
+      bands["observed_event_exposure"],
+      color=_COLORS["orange"],
+      linewidth=1.6,
+      linestyle="--",
+      marker="x",
+      markersize=5,
+    )[0]
+    for line, label, offset in (
+      (predicted, "PD x EAD", 8),
+      (observed, "Event-loan EAD", -10),
+    ):
+      axes[1].annotate(
+        f"{label} ${line.get_ydata()[-1]:,.0f}",
+        (positions[-1], line.get_ydata()[-1]),
+        xytext=(7, offset),
+        textcoords="offset points",
+        color=line.get_color(),
+        fontsize=7,
+        va="center",
+      )
+    axes[1].set(
+      title="Predicted versus observed event exposure",
+      xlabel="Test score band · low to high risk",
+      ylabel="Event-associated cutoff balance ($)",
+      xticks=positions,
+      xticklabels=bands["score_band"],
+      xlim=(-0.4, len(positions) - 0.2),
+      ylim=(
+        0,
+        max(
+          float(bands["expected_event_exposure"].max()),
+          float(bands["observed_event_exposure"].max()),
+        )
+        * 1.25,
+      ),
+    )
+    axes[1].yaxis.set_major_formatter(StrMethodFormatter("${x:,.0f}"))
     return figure
 
 

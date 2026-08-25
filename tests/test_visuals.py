@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 from quantcredit.audits import Audit
-from quantcredit.baselines import Baseline, Evaluation, Metrics
+from quantcredit.baselines import Baseline, Evaluation, Exposure, Metrics
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
 from quantcredit.visuals import (
@@ -201,6 +201,26 @@ class VisualTests(unittest.TestCase):
       metrics=Metrics(90, 12, 12 / 90, 0.70, 0.15, 0.09, 0.08),
       reference=Metrics(90, 12, 12 / 90, 0.5, 12 / 90, 0.14, 0.10),
       calibration=baseline.calibration,
+      exposure=Exposure(
+        samples=90,
+        exposure_samples=90,
+        total_exposure=900_000,
+        expected_event_exposure=90_000,
+        observed_event_exposure=100_000,
+        bands=pd.DataFrame(
+          {
+            "score_band": [1, 2],
+            "samples": [45, 45],
+            "events": [2, 10],
+            "exposure_samples": [45, 45],
+            "total_exposure": [400_000, 500_000],
+            "mean_pd": [0.02, 0.18],
+            "exposure_weighted_pd": [0.02, 0.164],
+            "expected_event_exposure": [8_000, 82_000],
+            "observed_event_exposure": [15_000, 85_000],
+          }
+        ),
+      ),
     )
     evaluation_figure = evaluation.plot()
     self.assertEqual(
@@ -215,6 +235,17 @@ class VisualTests(unittest.TestCase):
     self.assertIn("Frozen test AUROC 0.700 vs 0.720 validation", evaluation_figure.get_suptitle())
     self.assertTrue(all(axis.get_legend() is None for axis in evaluation_figure.axes))
     self.assertEqual(evaluation_figure.get_size_inches()[1], 8)
+
+    exposure_figure = evaluation.exposure.plot()
+    self.assertEqual(
+      {axis.get_title() for axis in exposure_figure.axes},
+      {
+        "Outstanding balance by risk band",
+        "Predicted versus observed event exposure",
+      },
+    )
+    self.assertIn("modeled event exposure—not ultimate loss", exposure_figure.get_suptitle())
+    self.assertTrue(all(axis.get_legend() is None for axis in exposure_figure.axes))
     self.assertTrue(all(not axis.spines["top"].get_visible() for axis in figure.axes))
     self.assertTrue(all(not axis.spines["right"].get_visible() for axis in figure.axes))
 
