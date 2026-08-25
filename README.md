@@ -47,11 +47,17 @@ baseline = qc.fit(examples)
 baseline.candidates.sort_values("log_loss").head(10)
 baseline.surface()
 baseline.plot()
+
+test = qc.evaluate(baseline, examples, manifest, split)
+test.summary()
+test.plot()
 ```
 
 Ordinary materialization exposes train and validation outcomes but marks every
 eligible test row as `held_out` with a missing target. The later explicit test
-operation owns the one-time derivation and evaluation of those outcomes.
+operation owns derivation and evaluation of those outcomes, and returns only
+aggregate metrics and calibration. September is out of time but not described
+as blind because its marginal event rate was historically observed.
 
 The default baseline maps a declared 36-candidate validation surface. During a
 short analysis, narrow the same operation explicitly—for example,

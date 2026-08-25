@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
 
 from quantcredit.audits import Audit
-from quantcredit.baselines import Baseline, Metrics
+from quantcredit.baselines import Baseline, Evaluation, Metrics
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
 from quantcredit.visuals import (
@@ -151,6 +151,7 @@ class VisualTests(unittest.TestCase):
           "selected": [False, False, False, False, False, False, True, False],
         }
       ),
+      reference_probability=0.1,
       reference=Metrics(100, 10, 0.1, 0.5, 0.1, 0.12, 0.09),
       calibration=pd.DataFrame(
         {
@@ -183,6 +184,26 @@ class VisualTests(unittest.TestCase):
     self.assertEqual([axis.get_title() for axis in surface.axes], ["Depth 1", "Depth 2"])
     self.assertIn("log-loss sensitivity", surface.get_suptitle())
     self.assertTrue(any("★" in text.get_text() for text in surface.axes[1].texts))
+
+    evaluation = Evaluation(
+      baseline=baseline,
+      cutoff=date(2025, 9, 30),
+      labels_observed_through=date(2025, 12, 31),
+      metrics=Metrics(90, 12, 12 / 90, 0.70, 0.15, 0.09, 0.08),
+      reference=Metrics(90, 12, 12 / 90, 0.5, 12 / 90, 0.14, 0.10),
+      calibration=baseline.calibration,
+    )
+    evaluation_figure = evaluation.plot()
+    self.assertEqual(
+      {axis.get_title() for axis in evaluation_figure.axes},
+      {
+        "Log loss · lower is better",
+        "Brier score · lower is better",
+        "Ranking stability",
+        "Test score-band calibration · Brier 0.0800",
+      },
+    )
+    self.assertIn("out-of-time test", evaluation_figure.get_suptitle())
 
   def test_audit_figure_renders_a_rejected_target_decision(self) -> None:
     audit = self._audit()

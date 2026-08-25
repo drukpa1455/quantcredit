@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import unittest
 from dataclasses import replace
+from datetime import date
+from types import SimpleNamespace
+from typing import Any, cast
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 
-from quantcredit.baselines import _compare, _metrics, fit_baseline
+from quantcredit.baselines import _compare, _metrics, evaluate_baseline, fit_baseline
 from quantcredit.populations import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
 
 
@@ -133,13 +137,76 @@ class BaselineTests(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, "both target classes"):
       fit_baseline(examples, depths=(1,), learning_rates=(0.05,), estimators=(5,))
 
+  def test_evaluates_the_matched_test_population_without_refitting(self) -> None:
+    revealed = self._examples()
+    revealed.loc[revealed.index[-1], ["target_status", "target"]] = ["censored", None]
+    examples = revealed.copy(deep=True)
+    test_rows = examples["fold"] == "test"
+    examples.loc[test_rows, "target"] = None
+    examples.loc[test_rows, "target_status"] = "held_out"
+    examples["target"] = examples["target"].astype(pd.Int8Dtype())
+    baseline = fit_baseline(
+      examples,
+      depths=(1, 2),
+      learning_rates=(0.05,),
+      estimators=(10,),
+    )
+    before = baseline.candidates.copy(deep=True)
+    split = cast(
+      Any,
+      SimpleNamespace(
+        test_cutoff=date(2025, 9, 30),
+        test_labels_observed_through=date(2025, 12, 31),
+      ),
+    )
+
+    with (
+      patch(
+        "quantcredit.baselines.materialize_test_examples",
+        return_value=revealed.loc[revealed["fold"] == "test"].copy(),
+      ),
+      patch.object(baseline.classifier, "fit", side_effect=AssertionError("refit")),
+    ):
+      evaluation = evaluate_baseline(
+        baseline,
+        examples,
+        cast(Any, None),
+        split,
+      )
+
+    self.assertEqual(evaluation.metrics.samples, 19)
+    self.assertEqual(evaluation.metrics.events, 3)
+    self.assertEqual(evaluation.reference.samples, 19)
+    self.assertEqual(evaluation.reference.events, 3)
+    self.assertGreater(evaluation.reference.log_loss, 0)
+    self.assertEqual(int(evaluation.calibration["samples"].sum()), 19)
+    self.assertNotIn("loan_id", repr(evaluation))
+    pd.testing.assert_frame_equal(baseline.candidates, before)
+
+    changed = examples.copy(deep=True)
+    changed.loc[test_rows, "credit_score"] += 1
+    with (
+      patch(
+        "quantcredit.baselines.materialize_test_examples",
+        return_value=revealed.loc[revealed["fold"] == "test"].copy(),
+      ),
+      self.assertRaisesRegex(ValueError, "does not match"),
+    ):
+      evaluate_baseline(baseline, changed, cast(Any, None), split)
+
   @staticmethod
   def _examples() -> pd.DataFrame:
     rows = []
     for fold, count, shift in (("train", 80, 0), ("validation", 40, 3), ("test", 20, 6)):
       for index in range(count):
         target = int(index % 8 == 0)
-        row: dict[str, object] = {"fold": fold, "target": target}
+        row: dict[str, object] = {
+          "loan_id": f"{fold}-{index}",
+          "cutoff": pd.Timestamp("2025-01-31") + pd.DateOffset(months=shift),
+          "fold": fold,
+          "target_status": "positive" if target else "negative",
+          "target": target,
+        }
         for feature_index, feature in enumerate(FEATURE_COLUMNS):
           if feature in CATEGORICAL_FEATURES:
             row[feature] = f"group-{(index + feature_index) % 3}"

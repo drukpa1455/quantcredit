@@ -10,7 +10,7 @@ if TYPE_CHECKING:
   from pandas import DataFrame
 
   from quantcredit.audits import Audit
-  from quantcredit.baselines import Baseline
+  from quantcredit.baselines import Baseline, Evaluation
   from quantcredit.source import SourceManifest
   from quantcredit.splits import CausalSplit
 
@@ -67,3 +67,18 @@ def fit(
     estimators=estimators,
     seed=seed,
   )
+
+
+def evaluate(
+  baseline: Baseline,
+  examples: DataFrame,
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path | None = None,
+) -> Evaluation:
+  """Evaluate one frozen baseline on the explicitly derived test fold."""
+  from quantcredit.baselines import evaluate_baseline
+
+  if cache is None:
+    return evaluate_baseline(baseline, examples, manifest, split)
+  return evaluate_baseline(baseline, examples, manifest, split, cache)

@@ -25,7 +25,7 @@ from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import CausalSplit
 
 if TYPE_CHECKING:
-  from quantcredit.baselines import Baseline
+  from quantcredit.baselines import Baseline, Evaluation
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
 _COLORS = {
@@ -254,8 +254,51 @@ def plot_baseline(baseline: Baseline) -> Figure:
     figure.suptitle("Shallow GBM · validation only", fontsize=16, fontweight="bold")
     _plot_candidate_loss(axes[0, 0], baseline)
     _plot_candidate_ranking(axes[0, 1], baseline)
-    _plot_calibration(axes[1, 0], baseline)
+    _plot_calibration(
+      axes[1, 0],
+      baseline.calibration,
+      baseline.validation.brier_score,
+      "Score-band calibration",
+      "Validation",
+    )
     _plot_importance(axes[1, 1], baseline)
+    return figure
+
+
+def plot_evaluation(evaluation: Evaluation) -> Figure:
+  """Show aggregate validation-to-test evidence for one frozen model."""
+  validation = evaluation.baseline.validation
+  with sapphire():
+    figure, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
+    figure.suptitle(
+      f"Frozen GBM · out-of-time test · {evaluation.cutoff.isoformat()}",
+      fontsize=16,
+      fontweight="bold",
+    )
+    _plot_score_comparison(
+      axes[0, 0],
+      "Log loss · lower is better",
+      validation.log_loss,
+      evaluation.metrics.log_loss,
+      evaluation.baseline.reference.log_loss,
+      evaluation.reference.log_loss,
+    )
+    _plot_score_comparison(
+      axes[0, 1],
+      "Brier score · lower is better",
+      validation.brier_score,
+      evaluation.metrics.brier_score,
+      evaluation.baseline.reference.brier_score,
+      evaluation.reference.brier_score,
+    )
+    _plot_ranking_comparison(axes[1, 0], evaluation)
+    _plot_calibration(
+      axes[1, 1],
+      evaluation.calibration,
+      evaluation.metrics.brier_score,
+      "Test score-band calibration",
+      "Test",
+    )
     return figure
 
 
@@ -403,8 +446,13 @@ def _plot_candidate_ranking(axis: Any, baseline: Baseline) -> None:
   axis.legend(fontsize=7)
 
 
-def _plot_calibration(axis: Any, baseline: Baseline) -> None:
-  calibration = baseline.calibration
+def _plot_calibration(
+  axis: Any,
+  calibration: DataFrame,
+  brier_score: float,
+  title: str,
+  fold: str,
+) -> None:
   positions = list(range(len(calibration)))
   width = 0.38
   predicted = axis.bar(
@@ -441,14 +489,86 @@ def _plot_calibration(axis: Any, baseline: Baseline) -> None:
   )
   upper = max(float(calibration["event_rate"].max()), 0.01) * 1.32
   axis.set(
-    title=f"Score-band calibration · Brier {baseline.validation.brier_score:.4f}",
-    xlabel="Validation score band · low to high risk",
+    title=f"{title} · Brier {brier_score:.4f}",
+    xlabel=f"{fold} score band · low to high risk",
     ylabel="Event probability",
     xticks=positions,
     xticklabels=calibration["score_band"],
     ylim=(0, upper),
   )
   axis.yaxis.set_major_formatter(PercentFormatter(1.0))
+  axis.legend(fontsize=8)
+
+
+def _plot_score_comparison(
+  axis: Any,
+  title: str,
+  validation: float,
+  test: float,
+  validation_reference: float,
+  test_reference: float,
+) -> None:
+  positions = (0, 1)
+  width = 0.36
+  model = axis.bar(
+    [position - width / 2 for position in positions],
+    (validation, test),
+    width,
+    color=_COLORS["cyan"],
+    alpha=0.82,
+    label="Frozen model",
+  )
+  reference = axis.bar(
+    [position + width / 2 for position in positions],
+    (validation_reference, test_reference),
+    width,
+    color=_COLORS["orange"],
+    alpha=0.82,
+    label="Train-rate reference",
+  )
+  for bars in (model, reference):
+    axis.bar_label(bars, fmt="%.4f", padding=3, fontsize=8, color=_COLORS["foreground"])
+  axis.set(
+    title=title,
+    xlabel="Prediction fold",
+    ylabel="Score",
+    xticks=positions,
+    xticklabels=("Validation", "Test"),
+    ylim=(0, max(validation, test, validation_reference, test_reference) * 1.25),
+  )
+  axis.legend(fontsize=8)
+
+
+def _plot_ranking_comparison(axis: Any, evaluation: Evaluation) -> None:
+  positions = (0, 1)
+  width = 0.36
+  validation = evaluation.baseline.validation
+  validation_bars = axis.bar(
+    [position - width / 2 for position in positions],
+    (validation.auroc, validation.average_precision),
+    width,
+    color=_COLORS["purple"],
+    alpha=0.82,
+    label="Validation",
+  )
+  test_bars = axis.bar(
+    [position + width / 2 for position in positions],
+    (evaluation.metrics.auroc, evaluation.metrics.average_precision),
+    width,
+    color=_COLORS["accent"],
+    alpha=0.82,
+    label="Test",
+  )
+  for bars in (validation_bars, test_bars):
+    axis.bar_label(bars, fmt="%.3f", padding=3, fontsize=8, color=_COLORS["foreground"])
+  axis.set(
+    title="Ranking stability",
+    xlabel="Metric",
+    ylabel="Score",
+    xticks=positions,
+    xticklabels=("AUROC", "Average precision"),
+    ylim=(0, 1),
+  )
   axis.legend(fontsize=8)
 
 
