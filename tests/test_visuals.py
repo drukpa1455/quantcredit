@@ -56,14 +56,16 @@ class VisualTests(unittest.TestCase):
     self.assertEqual(figure.axes[3].get_xscale(), "log")
     self.assertEqual(len(figure.axes[0].lines), 1)
     self.assertGreater(len(figure.axes[2].texts), 0)
+    self.assertIn("Population contracts 10.0%", figure.get_suptitle())
     self.assertIn(
       "Zero balance 1+99",
       {tick.get_text() for tick in figure.axes[1].get_yticklabels()},
     )
     self.assertIn(
-      "Zero balance 1+99",
+      "Zero bal. 1+99",
       {tick.get_text() for tick in figure.axes[2].get_xticklabels()},
     )
+    self.assertTrue(all(not tick.get_rotation() for tick in figure.axes[2].get_xticklabels()))
 
   def test_split_figure_preserves_cutoffs_and_maturity(self) -> None:
     periods = tuple(date(2025, month, 1) for month in range(1, 13))
@@ -77,7 +79,8 @@ class VisualTests(unittest.TestCase):
     self.assertEqual(axis.get_yticklabels()[2].get_text(), "Train")
     self.assertEqual(len(axis.collections), 3)
     self.assertEqual(len(axis.lines), 6)
-    self.assertIn("3-report label horizon", axis.get_title())
+    self.assertIn("Labels mature before the next fold", axis.get_title())
+    self.assertIn("3-report horizon", axis.get_title())
     self.assertEqual(axis.get_xlabel(), "2025 report period")
 
   def test_example_figure_exposes_population_missingness_and_drift(self) -> None:
@@ -103,6 +106,7 @@ class VisualTests(unittest.TestCase):
     self.assertGreater(len(figure.axes[3].get_yticklabels()), 0)
     self.assertGreaterEqual(figure.get_size_inches()[1], 9)
     self.assertIn("Held out", {text.get_text() for text in figure.axes[1].texts})
+    self.assertGreater(len({patch.get_hatch() for patch in figure.axes[0].patches}), 1)
     pd.testing.assert_frame_equal(examples, before)
 
   def test_example_figure_rejects_an_incomplete_frame(self) -> None:
@@ -178,11 +182,16 @@ class VisualTests(unittest.TestCase):
         "Selected model · permutation importance",
       },
     )
-    self.assertIn("validation only", figure.get_suptitle())
+    self.assertIn("selected within validation uncertainty", figure.get_suptitle())
+    self.assertIsNone(figure.axes[0].get_legend())
+    self.assertIsNone(figure.axes[1].get_legend())
+    self.assertIsNone(figure.axes[2].get_legend())
+    self.assertGreaterEqual(len(figure.axes[1].texts), 3)
+    self.assertEqual(len(figure.axes[2].lines), 2)
 
     surface = plot_sensitivity(baseline)
     self.assertEqual([axis.get_title() for axis in surface.axes], ["Depth 1", "Depth 2"])
-    self.assertIn("log-loss sensitivity", surface.get_suptitle())
+    self.assertIn("Near-best validation region favors depth 2", surface.get_suptitle())
     self.assertTrue(any("★" in text.get_text() for text in surface.axes[1].texts))
 
     evaluation = Evaluation(
@@ -203,7 +212,11 @@ class VisualTests(unittest.TestCase):
         "Test score-band calibration · Brier 0.0800",
       },
     )
-    self.assertIn("out-of-time test", evaluation_figure.get_suptitle())
+    self.assertIn("Frozen test AUROC 0.700 vs 0.720 validation", evaluation_figure.get_suptitle())
+    self.assertTrue(all(axis.get_legend() is None for axis in evaluation_figure.axes))
+    self.assertEqual(evaluation_figure.get_size_inches()[1], 8)
+    self.assertTrue(all(not axis.spines["top"].get_visible() for axis in figure.axes))
+    self.assertTrue(all(not axis.spines["right"].get_visible() for axis in figure.axes))
 
   def test_audit_figure_renders_a_rejected_target_decision(self) -> None:
     audit = self._audit()

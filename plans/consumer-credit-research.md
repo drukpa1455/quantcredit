@@ -6,7 +6,8 @@ Repositories: `drukpa1455/quantcredit` research repository;
 Inspected TinyMesh revision: `dad041a41cf7df7b379dc0e1a9769d6805a12042`
 Sources: 2026-08-22 through 2026-08-23 Edge Focus interview-preparation
 discussion; SEC asset-level disclosure; Zed REPL contract; pinned PyG Temporal
-reference
+reference; Caylent `tufte-data-viz` revision
+`ae7ca0de7819db83241b24a2618810d5f1171145`
 
 ## Repository decision
 
@@ -609,6 +610,11 @@ The first possible temporal promotion questions are deliberately separate:
 - **D-14:** Pair each material research table with one canonical aggregate
   visual that reveals the pattern the table quantifies. Figures never become a
   second transformation owner and never retain consumer-level rows.
+- **D-15:** Use the pinned `tufte-data-viz` repository as a visual-review
+  reference, not a dependency or installed skill. Adopt finding-led titles,
+  restrained ink, direct labels, honest scales, and redundant encodings;
+  preserve Sapphire dark mode and monospace where they remain legible. The
+  local standard in `docs/research/data-visualization.md` owns adaptations.
 
 ### Failure and operational behavior
 
@@ -915,6 +921,8 @@ specific browser interaction or linked-selection contract earns their runtime
 and export complexity. The scoped Sapphire theme snapshots selected visual
 tokens inspected from Reia revision
 `0ad104c8bfbf7a08232ca45fefea8509e22d9fce`; `quantcredit` never imports Reia.
+The local visual standard adapts pinned `tufte-data-viz` guidance without
+copying its serif, off-white, or universal legend-removal defaults.
 
 **Done when:**
 
@@ -926,6 +934,15 @@ tokens inspected from Reia revision
 - Notebook sections `04a` and `05a` call the same tested visual owners.
 - Tests verify figure semantics, scales, lanes, and theme cleanup; full-resolution
   synthetic and real aggregate renders receive visual inspection.
+
+**2026-08-25 visual review:** All six canonical real-panel figures were rendered
+full-resolution against the pinned Tufte-derived checklist. Finding-led titles,
+directly labeled calibration and validation/test comparisons, redundant hatch
+encoding, compact horizontal transition labels, muted non-selected bars,
+horizontal-only quantitative guides, and reduced spines improved the existing
+Sapphire figures without changing any aggregate or model result. The frozen
+test metrics reproduced exactly, including AUROC `0.8502020830`, average
+precision `0.3454795252`, and log loss `0.0418013600`.
 
 #### Issue 2.1b: Make canonical research results fluent
 

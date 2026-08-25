@@ -56,7 +56,10 @@ _STYLE: dict[str, Any] = {
   "axes.labelcolor": _COLORS["foreground"],
   "axes.titlecolor": _COLORS["foreground"],
   "axes.titleweight": "bold",
+  "axes.spines.top": False,
+  "axes.spines.right": False,
   "axes.grid": True,
+  "axes.grid.axis": "y",
   "axes.axisbelow": True,
   "axes.prop_cycle": cycler(
     color=[
@@ -104,6 +107,11 @@ _STATE_LABEL = {
   "zero_balance:3": "Repurchased",
   "zero_balance:4": "Charged off",
 }
+_STATE_COMPACT_LABEL = {
+  **_STATE_LABEL,
+  "zero_balance:1": "Paid",
+  "zero_balance:3": "Repurch.",
+}
 _STATE_COLOR = {
   "delinquency:current": _COLORS["cyan"],
   "delinquency:1-29": _COLORS["green"],
@@ -140,6 +148,7 @@ _STATUS_COLOR = {
   "right_censored": _COLORS["purple"],
   "held_out": _COLORS["muted"],
 }
+_STATUS_HATCH = ("", "//", "xx", "..", "\\\\", "++")
 
 
 @contextmanager
@@ -151,9 +160,23 @@ def sapphire() -> Iterator[None]:
 
 def plot_audit(audit: Audit) -> Figure:
   """Show population, state, transition, and target evidence without source rows."""
+  reported = [int(row["reported"]) for row in audit.continuity]
+  if reported[0] == 0:
+    population_finding = f"Population reaches {reported[-1]:,}"
+  else:
+    change = reported[-1] / reported[0] - 1
+    population_finding = (
+      "Population is unchanged"
+      if change == 0
+      else f"Population {'contracts' if change < 0 else 'expands'} {abs(change):.1%}"
+    )
   with sapphire():
     figure, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
-    figure.suptitle("Consumer credit data audit", fontsize=16, fontweight="bold")
+    figure.suptitle(
+      f"{population_finding} across {len(reported)} reports",
+      fontsize=16,
+      fontweight="bold",
+    )
     _plot_population(axes[0, 0], audit)
     _plot_states(axes[0, 1], audit)
     _plot_transitions(axes[1, 0], audit)
@@ -207,7 +230,7 @@ def plot_split(split: CausalSplit) -> Figure:
     start = split.train_cutoffs[0] - timedelta(days=12)
     end = split.test_labels_observed_through + timedelta(days=12)
     axis.set(
-      title=f"Causal split · {split.horizon_reports}-report label horizon",
+      title=f"Labels mature before the next fold · {split.horizon_reports}-report horizon",
       xlabel=_period_label([split.train_cutoffs[0], split.test_labels_observed_through]),
       xlim=(start, end),
       ylim=(-0.6, 2.6),
@@ -236,10 +259,19 @@ def plot_examples(examples: DataFrame) -> Figure:
     raise ValueError("examples require reported folds and target dispositions")
   missing_rows = _missingness(examples, folds)
   drift_rows = _drift(examples, folds)
+  largest_shift = max(
+    (abs(value) for _, shifts in drift_rows for value in shifts if value == value),
+    default=0.0,
+  )
   height = max(9.0, 5.4 + 0.24 * max(len(missing_rows), len(drift_rows)))
   with sapphire():
     figure, axes = plt.subplots(2, 2, figsize=(15, height), constrained_layout=True)
-    figure.suptitle("Causal modeling population", fontsize=16, fontweight="bold")
+    held_out = "test outcomes held out · " if "held_out" in set(examples["target_status"]) else ""
+    figure.suptitle(
+      f"Causal population · {held_out}largest median shift {largest_shift:.2f} train IQR",
+      fontsize=16,
+      fontweight="bold",
+    )
     _plot_fold_composition(axes[0, 0], examples, folds)
     _plot_event_rate(axes[0, 1], examples, folds)
     _plot_missingness(axes[1, 0], missing_rows, folds)
@@ -251,7 +283,11 @@ def plot_baseline(baseline: Baseline) -> Figure:
   """Show validation-only model selection, ranking, calibration, and importance."""
   with sapphire():
     figure, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
-    figure.suptitle("Shallow GBM · validation only", fontsize=16, fontweight="bold")
+    figure.suptitle(
+      f"Depth {baseline.selected_depth} selected within validation uncertainty",
+      fontsize=16,
+      fontweight="bold",
+    )
     _plot_candidate_loss(axes[0, 0], baseline)
     _plot_candidate_ranking(axes[0, 1], baseline)
     _plot_calibration(
@@ -269,9 +305,18 @@ def plot_evaluation(evaluation: Evaluation) -> Figure:
   """Show aggregate validation-to-test evidence for one frozen model."""
   validation = evaluation.baseline.validation
   with sapphire():
-    figure, axes = plt.subplots(2, 2, figsize=(14, 9), constrained_layout=True)
+    figure, axes = plt.subplots(
+      2,
+      2,
+      figsize=(14, 8),
+      constrained_layout=True,
+      gridspec_kw={"height_ratios": (0.7, 1.3)},
+    )
     figure.suptitle(
-      f"Frozen GBM · out-of-time test · {evaluation.cutoff.isoformat()}",
+      (
+        f"Frozen test AUROC {evaluation.metrics.auroc:.3f} vs "
+        f"{validation.auroc:.3f} validation"
+      ),
       fontsize=16,
       fontweight="bold",
     )
@@ -316,7 +361,7 @@ def plot_sensitivity(baseline: Baseline) -> Figure:
       squeeze=False,
     )
     figure.suptitle(
-      "Validation log-loss sensitivity · outline near-best · ★ selected",
+      f"Near-best validation region favors depth {baseline.selected_depth} · ★ selected",
       fontsize=16,
       fontweight="bold",
     )
@@ -391,7 +436,7 @@ def _plot_candidate_loss(axis: Any, baseline: Baseline) -> None:
   best_by_depth = candidates.groupby("max_depth", observed=True)["log_loss"].min()
   labels = [f"depth {depth}" for depth in best_by_depth.index]
   colors = [
-    _COLORS["accent"] if depth == baseline.selected_depth else _COLORS["cyan"]
+    _COLORS["accent"] if depth == baseline.selected_depth else _COLORS["muted"]
     for depth in best_by_depth.index
   ]
   bars = axis.bar(labels, best_by_depth, color=colors, alpha=0.82)
@@ -401,7 +446,16 @@ def _plot_candidate_loss(axis: Any, baseline: Baseline) -> None:
     color=_COLORS["orange"],
     linestyle="--",
     linewidth=1.4,
-    label="Train-rate reference",
+  )
+  axis.annotate(
+    "Train-rate reference",
+    (0.98, baseline.reference.log_loss),
+    xycoords=axis.get_yaxis_transform(),
+    xytext=(-4, 4),
+    textcoords="offset points",
+    ha="right",
+    color=_COLORS["orange"],
+    fontsize=8,
   )
   axis.set(
     title=(
@@ -412,19 +466,28 @@ def _plot_candidate_loss(axis: Any, baseline: Baseline) -> None:
     ylabel="Validation log loss · lower is better",
     ylim=(0, max(float(best_by_depth.max()), baseline.reference.log_loss) * 1.2),
   )
-  axis.legend(fontsize=8)
 
 
 def _plot_candidate_ranking(axis: Any, baseline: Baseline) -> None:
   candidates = baseline.candidates
   palette = (_COLORS["cyan"], _COLORS["green"], _COLORS["orange"], _COLORS["purple"])
   for index, (depth, group) in enumerate(candidates.groupby("max_depth", observed=True)):
+    color = palette[index % len(palette)]
     axis.scatter(
       group["auroc"],
       group["average_precision"],
-      color=palette[index % len(palette)],
+      color=color,
       alpha=0.72,
-      label=f"Depth {depth}",
+    )
+    endpoint = group.loc[group["auroc"].idxmax()]
+    axis.annotate(
+      f"depth {depth}",
+      (endpoint["auroc"], endpoint["average_precision"]),
+      xytext=(5, 0),
+      textcoords="offset points",
+      va="center",
+      color=color,
+      fontsize=7,
     )
   selected = candidates.loc[candidates["selected"]].iloc[0]
   axis.scatter(
@@ -435,15 +498,22 @@ def _plot_candidate_ranking(axis: Any, baseline: Baseline) -> None:
     color=_COLORS["accent"],
     edgecolor=_COLORS["deep"],
     linewidth=0.8,
-    label="Selected",
     zorder=4,
+  )
+  axis.annotate(
+    "selected",
+    (selected["auroc"], selected["average_precision"]),
+    xytext=(0, 9),
+    textcoords="offset points",
+    ha="center",
+    color=_COLORS["accent"],
+    fontsize=7,
   )
   axis.set(
     title="Ranking-metric tradeoff",
     xlabel="AUROC",
     ylabel="Average precision",
   )
-  axis.legend(fontsize=7)
 
 
 def _plot_calibration(
@@ -454,39 +524,33 @@ def _plot_calibration(
   fold: str,
 ) -> None:
   positions = list(range(len(calibration)))
-  width = 0.38
-  predicted = axis.bar(
-    [position - width / 2 for position in positions],
+  predicted = axis.plot(
+    positions,
     calibration["mean_score"],
-    width,
     color=_COLORS["cyan"],
-    alpha=0.82,
-    label="Predicted",
-  )
-  observed = axis.bar(
-    [position + width / 2 for position in positions],
+    linewidth=1.8,
+    marker="o",
+    markersize=4,
+  )[0]
+  observed = axis.plot(
+    positions,
     calibration["event_rate"],
-    width,
     color=_COLORS["orange"],
-    alpha=0.82,
-    label="Observed",
-  )
-  axis.bar_label(
-    predicted,
-    labels=[f"{value:.1%}" for value in calibration["mean_score"]],
-    padding=2,
-    color=_COLORS["foreground"],
-    fontsize=6,
-    rotation=90,
-  )
-  axis.bar_label(
-    observed,
-    labels=[f"{value:.1%}" for value in calibration["event_rate"]],
-    padding=2,
-    color=_COLORS["foreground"],
-    fontsize=6,
-    rotation=90,
-  )
+    linewidth=1.5,
+    linestyle="--",
+    marker="x",
+    markersize=5,
+  )[0]
+  for line, label, offset in ((predicted, "Predicted", 7), (observed, "Observed", -9)):
+    axis.annotate(
+      f"{label} {line.get_ydata()[-1]:.1%}",
+      (positions[-1], line.get_ydata()[-1]),
+      xytext=(7, offset),
+      textcoords="offset points",
+      color=line.get_color(),
+      fontsize=7,
+      va="center",
+    )
   upper = max(float(calibration["event_rate"].max()), 0.01) * 1.32
   axis.set(
     title=f"{title} · Brier {brier_score:.4f}",
@@ -494,10 +558,10 @@ def _plot_calibration(
     ylabel="Event probability",
     xticks=positions,
     xticklabels=calibration["score_band"],
+    xlim=(-0.4, len(positions) - 0.25),
     ylim=(0, upper),
   )
   axis.yaxis.set_major_formatter(PercentFormatter(1.0))
-  axis.legend(fontsize=8)
 
 
 def _plot_score_comparison(
@@ -509,79 +573,103 @@ def _plot_score_comparison(
   test_reference: float,
 ) -> None:
   positions = (0, 1)
-  width = 0.36
-  model = axis.bar(
-    [position - width / 2 for position in positions],
-    (validation, test),
-    width,
-    color=_COLORS["cyan"],
-    alpha=0.82,
-    label="Frozen model",
+  model = (validation, test)
+  reference = (validation_reference, test_reference)
+  axis.hlines(positions, model, reference, color=_COLORS["border"], linewidth=2)
+  axis.scatter(model, positions, color=_COLORS["cyan"], s=45, zorder=3)
+  axis.scatter(
+    reference,
+    positions,
+    facecolors="none",
+    edgecolors=_COLORS["orange"],
+    s=45,
+    linewidth=1.5,
+    zorder=3,
   )
-  reference = axis.bar(
-    [position + width / 2 for position in positions],
-    (validation_reference, test_reference),
-    width,
-    color=_COLORS["orange"],
-    alpha=0.82,
-    label="Train-rate reference",
-  )
-  for bars in (model, reference):
-    axis.bar_label(bars, fmt="%.4f", padding=3, fontsize=8, color=_COLORS["foreground"])
+  for position, model_score, reference_score in zip(positions, model, reference, strict=True):
+    axis.annotate(
+      f"model {model_score:.4f}",
+      (model_score, position),
+      xytext=(0, -10),
+      textcoords="offset points",
+      ha="center",
+      color=_COLORS["cyan"],
+      fontsize=7,
+    )
+    axis.annotate(
+      f"reference {reference_score:.4f}",
+      (reference_score, position),
+      xytext=(0, 8),
+      textcoords="offset points",
+      ha="center",
+      color=_COLORS["orange"],
+      fontsize=7,
+    )
   axis.set(
     title=title,
-    xlabel="Prediction fold",
-    ylabel="Score",
-    xticks=positions,
-    xticklabels=("Validation", "Test"),
-    ylim=(0, max(validation, test, validation_reference, test_reference) * 1.25),
+    xlabel="Score · filled model, open reference",
+    ylabel="Prediction fold",
+    yticks=positions,
+    yticklabels=("Validation", "Test"),
+    xlim=(0, max(validation, test, validation_reference, test_reference) * 1.2),
   )
-  axis.legend(fontsize=8)
+  axis.invert_yaxis()
+  axis.grid(False)
 
 
 def _plot_ranking_comparison(axis: Any, evaluation: Evaluation) -> None:
   positions = (0, 1)
-  width = 0.36
   validation = evaluation.baseline.validation
-  validation_bars = axis.bar(
-    [position - width / 2 for position in positions],
-    (validation.auroc, validation.average_precision),
-    width,
-    color=_COLORS["purple"],
-    alpha=0.82,
-    label="Validation",
-  )
-  test_bars = axis.bar(
-    [position + width / 2 for position in positions],
-    (evaluation.metrics.auroc, evaluation.metrics.average_precision),
-    width,
-    color=_COLORS["accent"],
-    alpha=0.82,
-    label="Test",
-  )
-  for bars in (validation_bars, test_bars):
-    axis.bar_label(bars, fmt="%.3f", padding=3, fontsize=8, color=_COLORS["foreground"])
+  validation_scores = (validation.auroc, validation.average_precision)
+  test_scores = (evaluation.metrics.auroc, evaluation.metrics.average_precision)
+  axis.hlines(positions, validation_scores, test_scores, color=_COLORS["border"], linewidth=2)
+  axis.scatter(validation_scores, positions, color=_COLORS["purple"], s=45, zorder=3)
+  axis.scatter(test_scores, positions, color=_COLORS["accent"], marker="D", s=38, zorder=3)
+  for position, validation_score, test_score in zip(
+    positions, validation_scores, test_scores, strict=True
+  ):
+    axis.annotate(
+      f"validation {validation_score:.3f}",
+      (validation_score, position),
+      xytext=(0, -10),
+      textcoords="offset points",
+      ha="center",
+      color=_COLORS["purple"],
+      fontsize=7,
+    )
+    axis.annotate(
+      f"test {test_score:.3f}",
+      (test_score, position),
+      xytext=(0, 8),
+      textcoords="offset points",
+      ha="center",
+      color=_COLORS["accent"],
+      fontsize=7,
+    )
   axis.set(
     title="Ranking stability",
-    xlabel="Metric",
-    ylabel="Score",
-    xticks=positions,
-    xticklabels=("AUROC", "Average precision"),
-    ylim=(0, 1),
+    xlabel="Score · circle validation, diamond test",
+    ylabel="Metric",
+    yticks=positions,
+    yticklabels=("AUROC", "Average precision"),
+    xlim=(0, 1),
   )
-  axis.legend(fontsize=8)
+  axis.invert_yaxis()
+  axis.grid(False)
 
 
 def _plot_importance(axis: Any, baseline: Baseline) -> None:
   importance = baseline.importance.head(12).iloc[::-1]
   labels = [str(feature).replace("_", " ") for feature in importance["feature"]]
-  axis.barh(labels, importance["importance"], color=_COLORS["purple"], alpha=0.82)
+  colors = [_COLORS["muted"]] * max(0, len(importance) - 1) + [_COLORS["accent"]]
+  axis.barh(labels, importance["importance"], color=colors, alpha=0.82)
   axis.set(
     title="Selected model · permutation importance",
     xlabel="Validation log-loss increase when permuted",
     ylabel="Transformed feature",
   )
   axis.tick_params(axis="y", labelsize=7)
+  axis.grid(False)
 
 
 def _ordered(values: Any, preferred: tuple[str, ...]) -> list[str]:
@@ -607,6 +695,7 @@ def _plot_fold_composition(axis: Any, examples: DataFrame, folds: list[str]) -> 
       width=width,
       label=_STATUS_LABEL.get(status, status.replace("_", " ").title()),
       color=_STATUS_COLOR.get(status, _COLORS["accent"]),
+      hatch=_STATUS_HATCH[status_index % len(_STATUS_HATCH)],
       alpha=0.82,
     )
     axis.bar_label(
@@ -870,6 +959,7 @@ def _plot_states(axis: Any, audit: Audit) -> None:
   axis.set_xlim(left=max(1, min(counts) / 2), right=max(counts) * 12)
   axis.invert_yaxis()
   axis.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+  axis.grid(False)
 
 
 def _period_label(periods: list[date]) -> str:
@@ -886,8 +976,10 @@ def _ordered_states(observed: dict[str, int]) -> list[str]:
   return known + unknown
 
 
-def _state_label(state: str) -> str:
-  return _STATE_LABEL.get(state, state.replace("zero_balance:", "Zero balance "))
+def _state_label(state: str, *, compact: bool = False) -> str:
+  labels = _STATE_COMPACT_LABEL if compact else _STATE_LABEL
+  fallback = state.replace("zero_balance:", "Zero bal. " if compact else "Zero balance ")
+  return labels.get(state, fallback)
 
 
 def _plot_transitions(axis: Any, audit: Audit) -> None:
@@ -913,6 +1005,7 @@ def _plot_transitions(axis: Any, audit: Audit) -> None:
     "sapphire-transition", (_COLORS["deep"], _COLORS["cyan"])
   )
   labels = [_state_label(state) for state in states]
+  compact_labels = [_state_label(state, compact=True) for state in states]
   sns.heatmap(
     rates,
     ax=axis,
@@ -924,12 +1017,12 @@ def _plot_transitions(axis: Any, audit: Audit) -> None:
     cbar=False,
     linewidths=0.5,
     linecolor=_COLORS["border"],
-    xticklabels=labels,
+    xticklabels=compact_labels,
     yticklabels=labels,
     annot_kws={"fontsize": 7},
   )
   axis.set(title="Next-report transition rate", xlabel="To state", ylabel="From state")
-  axis.tick_params(axis="x", labelrotation=42, labelsize=8)
+  axis.tick_params(axis="x", labelrotation=0, labelsize=7)
   axis.tick_params(axis="y", labelrotation=0, labelsize=8)
 
 
@@ -983,3 +1076,4 @@ def _plot_targets(axis: Any, audit: Audit) -> None:
   )
   axis.invert_yaxis()
   axis.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+  axis.grid(False)
