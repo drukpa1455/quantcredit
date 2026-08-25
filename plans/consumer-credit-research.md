@@ -1279,7 +1279,7 @@ claiming ultimate net loss from the bounded recovery horizon.
 without silently treating a serious-delinquency event, cutoff balance, or partial
 recovery history as ultimate net loss.
 
-**Status:** Implemented at revision `e16ce0a`; pending delivery.
+**Status:** Implemented at revision `e16ce0a`; landed in `af37746` via PR #24.
 
 **Decision:** The frozen evaluation now owns one aggregate `Exposure` result.
 Observed cutoff `ending_balance` is the EAD proxy. `PD x EAD` is named expected
