@@ -1210,8 +1210,8 @@ reserve blind-test language for a future untouched issuer or time slice.
 out-of-time evidence without reopening preprocessing, candidate generation,
 selection, or feature decisions.
 
-**Status:** Implementation and real-data evaluation complete; revision recorded
-after landing.
+**Status:** Implemented and evaluated at revision `925012b`; landing revision to
+be recorded after merge.
 
 **Decision:** `qc.evaluate(baseline, examples, manifest, split)` is the sole
 notebook test operation. It performs a new checksum-verified panel scan, derives
