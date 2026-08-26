@@ -158,12 +158,12 @@ def _materialize_examples(
       target = _target(result)
     records.append(
       {
-        "loan_id": _loan_id(asset),
+        "loan_id": loan_id(asset),
         "cutoff": cutoff,
         "fold": folds[cutoff],
         "target_status": target_status,
         "target": target,
-        **_features(snapshot),
+        **loan_features(snapshot),
       }
     )
 
@@ -173,7 +173,8 @@ def _materialize_examples(
   return frame.sort_values(["cutoff", "loan_id"], ignore_index=True)
 
 
-def _features(snapshot: LoanSnapshot) -> dict[str, object]:
+def loan_features(snapshot: LoanSnapshot) -> dict[str, object]:
+  """Derive the declared causal feature row from one cutoff snapshot."""
   cutoff = snapshot.key.report_period
   original_amount = _number(snapshot, "originalLoanAmount")
   vehicle_value = _number(snapshot, "vehicleValueAmount")
@@ -256,6 +257,7 @@ def _target(result: TargetResult) -> int | None:
   return None
 
 
-def _loan_id(asset: AssetKey) -> str:
+def loan_id(asset: AssetKey) -> str:
+  """Return the repository-safe stable digest for one source asset identity."""
   identity = f"{asset.cik}:{asset.asset_number}".encode()
   return hashlib.sha256(identity).hexdigest()

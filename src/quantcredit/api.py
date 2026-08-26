@@ -16,6 +16,7 @@ if TYPE_CHECKING:
   from quantcredit.decisions import Decision, Pool
   from quantcredit.source import SourceManifest
   from quantcredit.splits import CausalSplit
+  from quantcredit.temporal import Forecast, ForecastEvaluation, History
 
 
 def audit(
@@ -50,6 +51,61 @@ def examples(
   if cache is None:
     return materialize_examples(manifest, split)
   return materialize_examples(manifest, split, cache)
+
+
+def history(
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path | None = None,
+  *,
+  lookback_reports: int = 3,
+) -> History:
+  """Materialize private causal histories with aggregate inspection."""
+  from quantcredit.temporal import materialize_history
+
+  if cache is None:
+    return materialize_history(manifest, split, lookback_reports=lookback_reports)
+  return materialize_history(
+    manifest,
+    split,
+    cache,
+    lookback_reports=lookback_reports,
+  )
+
+
+def forecast(
+  history: History,
+  *,
+  depths: tuple[int, ...] = (1, 2, 3, 4),
+  learning_rates: tuple[float, ...] = (0.02, 0.05, 0.10),
+  estimators: tuple[int, ...] = (60, 120, 240),
+  seed: int = 7,
+) -> Forecast:
+  """Test whether aligned loan history improves the snapshot GBM."""
+  from quantcredit.temporal import forecast as run
+
+  return run(
+    history,
+    depths=depths,
+    learning_rates=learning_rates,
+    estimators=estimators,
+    seed=seed,
+  )
+
+
+def reveal(
+  study: Forecast,
+  history: History,
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path | None = None,
+) -> ForecastEvaluation:
+  """Open one exact held-out test for a validation-frozen temporal study."""
+  from quantcredit.temporal import reveal as run
+
+  if cache is None:
+    return run(study, history, manifest, split)
+  return run(study, history, manifest, split, cache)
 
 
 def fit(
