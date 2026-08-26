@@ -1,7 +1,7 @@
 # quantcredit
 
-Executable consumer-credit research from public records to classical and graph
-models.
+Executable consumer-credit research from public records to classical, temporal,
+and graph challengers.
 
 The project starts with SEC Form ABS-EE auto-loan disclosures. It first proves
 what the records mean, then builds a shallow gradient-boosted baseline, and only
@@ -9,7 +9,8 @@ then asks whether relational structure adds information.
 
 ```text
 SEC filings -> causal target -> shallow GBM -> decision frontier -> cash waterfall
-                                                              -> graph controls
+                                      |                       -> graph controls
+                                      `-> loan history ------> next-report warning
 ```
 
 ## Notebook
@@ -68,6 +69,19 @@ study.plot()
 
 graph_test = qc.confirm(study, examples, manifest, split)
 graph_test.summary()
+
+early_split = qc.split(manifest.report_periods, horizon_reports=1)
+history = qc.history(manifest, early_split)
+history.summary()
+history.plot()
+
+forecast = qc.forecast(history)
+forecast.summary()
+forecast.comparison
+forecast.plot()
+
+forecast_test = qc.reveal(forecast, history, manifest, early_split)
+forecast_test.summary()
 ```
 
 Ordinary materialization exposes train and validation outcomes but marks every
@@ -102,6 +116,23 @@ topology controls, so the retained decision is
 `no_value_from_current_ontology`. This is evidence about the tested ontology,
 not a rejection of graph methods or richer borrower, account, payment, asset,
 identity, or temporal relations. No TinyMesh primitive was added.
+
+The temporal study asks a narrower early-warning question among loans observed
+for three consecutive reports and fewer than 30 days delinquent at cutoff: will
+the loan first reach 60+ delinquency or charge-off in the next report? The
+snapshot and history arms use the same selected shallow-GBM capacity. A
+shuffled-history arm preserves every cutoff's history distribution while
+breaking loan alignment.
+
+On validation, aligned history improved log loss from `0.014829` to `0.013788`
+and average precision from `0.260214` to `0.323902`; shuffled history did not
+improve the snapshot. The frozen test retained the direction: log loss
+`0.012302` to `0.012083` and average precision `0.317180` to `0.335136`, while
+Brier score moved adversely from `0.002259` to `0.002328`. The result supports
+loan-history information for next-report warning, with mixed probability-error
+evidence. It does not estimate legal default, an event exactly three months
+ahead, or graph-recurrent value. The changing loan universe, short panel, and
+lack of borrower-to-borrower relations leave a temporal graph arm unidentified.
 
 The default baseline maps a declared 36-candidate validation surface. For a
 quick exploratory run, narrow the same operation explicitly—for example,

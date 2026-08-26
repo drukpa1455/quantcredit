@@ -196,3 +196,33 @@ graph_test.plot()
 # %% 11 — Conclusion and reopening conditions
 # What does the evidence prove, reject, and require before another experiment?
 {"validation": study.decision, "test": graph_test.decision}
+
+
+# %% 12 — Next-report history boundary
+# Can three observed reports support honest early warning in this twelve-month panel?
+early_split = qc.split(manifest.report_periods, horizon_reports=1)
+history = qc.history(manifest, early_split)
+history.features
+history.summary()
+history.plot()
+
+
+# %% 13 — Temporal information and falsification
+# Does aligned loan history beat the same snapshot GBM and shuffled histories?
+forecast = qc.forecast(history)
+forecast.summary()
+forecast.comparison
+forecast.calibration
+forecast.plot()
+
+
+# %% 13a — Frozen temporal reveal
+# Does validation-selected history value persist at the November cutoff?
+forecast_test = qc.reveal(forecast, history, manifest, early_split)
+forecast_test.summary()
+forecast_test.plot()
+
+
+# %% 14 — Temporal conclusion
+# What did history add, and why does this still not identify graph recurrence?
+{"validation": forecast.decision, "test": forecast_test.decision}

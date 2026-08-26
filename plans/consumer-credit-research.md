@@ -3,9 +3,12 @@
 Decision state: Complete — `no_value_from_current_ontology`
 Ontology-scope correction: implemented in `5d968a2`; landed in `a5cda4b` via
 PR #30
+Stage 5 state: Complete — `retain_history`; temporal graph not identified
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
 Inspected TinyMesh revision: `d8897db013041c56fce821aa30cd3e551debb8e6`
+Inspected PyTorch Geometric Temporal revision:
+`ea40a6a396b6688a94d7482d9d5fd288eaa2cb3b`
 Sources: SEC asset-level disclosure; Zed REPL contract; pinned PyG Temporal
 reference; Caylent `tufte-data-viz` revision
 `ae7ca0de7819db83241b24a2618810d5f1171145`
@@ -298,6 +301,10 @@ does not prove, and what would reopen the decision.
   from investment returns. Purchase price, default, prepayment, recovery, and
   waterfall assumptions are explicit inputs; no serious-delinquency score is
   silently relabeled as ultimate default or fair value.
+- **INV-16 — Lead-time honesty:** A next-report event, an event within three
+  reports, and an event exactly three reports ahead are distinct targets.
+  History ends at the prediction cutoff, every label begins afterward, and a
+  60+ delinquency-or-charge-off event is never silently renamed legal default.
 
 - **AC-1 — Data boundary:** A clean-revision experiment validates all twelve
   Ford 2024-A reports for 2025, emits aggregate schema/identity/transition/
@@ -343,6 +350,17 @@ does not prove, and what would reopen the decision.
   flows from explicit assumptions, allocate cash senior-first and losses
   junior-first, and report tranche cash, loss, ending balance, and scenario
   yield. Every output is labeled as a scenario rather than a valuation claim.
+- **AC-12 — Temporal information:** On one matched currently-performing
+  population, snapshot and history GBMs use identical cutoffs, current fields,
+  outcomes, model capacity, and validation selection. History value requires
+  better validation log loss and average precision, followed by one frozen test
+  reveal. Lag values and changes are fit or derived from reports at or before
+  the cutoff.
+- **AC-13 — Temporal graph gate:** A graph-recurrent arm requires stable node
+  identity across snapshots, explicit active/missing masks, and relational
+  information beyond the flattened history control. A temporal iterator or
+  recurrent layer alone is not evidence of graph value and cannot authorize a
+  TinyMesh primitive.
 
 ## Technical design
 
@@ -555,23 +573,19 @@ loan rows. Model selection uses validation only. The final test opens once
 after the target, horizons, features, topology, seeds, budget, and primary
 metric are frozen.
 
-### Temporal monitoring study
+### Temporal early-warning study
 
-After the static result closes, Stage 5 may aggregate persistent nodes such as
-`originator × risk band × vehicle class × state` by reporting month. It begins
-with `StaticGraphTemporalSignal` and existing node-local, TGCN, GConvGRU, and
-DiffusionGRU controls.
+Stage 5 first tests whether a loan's own observed trajectory contains value that
+the cutoff snapshot omits. The twelve-report source can support three observed
+reports followed by a one-report outcome across causal train, validation, and
+test folds. It cannot support that lookback with three non-overlapping future
+reports at every fold.
 
-The first possible temporal promotion questions are deliberately separate:
-
-- **Presence masks:** required only if a fixed segment universe contains
-  semantically distinct inactive and observed-zero rows.
-- **Per-lane edge values:** required only if a fixed edge set has observed,
-  causal monthly values whose static replacement measurably fails.
-- **Dynamic topology:** required only if fixed-union topology plus explicit
-  presence cannot express the study without changing semantics.
-- **Event memory:** requires genuinely irregular applicant, inquiry,
-  transaction, or payment events. Monthly ABS-EE snapshots cannot justify it.
+Temporal graph recurrence remains a later, separate claim. It requires a stable
+masked node universe or a richer persistent entity/event ontology; temporal
+iterators and recurrence do not manufacture relational information. Event-memory
+models require genuinely irregular applicant, inquiry, transaction, or payment
+events; monthly ABS-EE snapshots cannot justify them.
 
 ### Decisions
 
@@ -684,8 +698,8 @@ Epic: executable consumer-credit research from public records to graph decision
   +-- Stage 4: close current ontology or graduate one missing equation
   |             (depends on Stage 3 evidence)
   |
-  `-- Stage 5: fixed-segment temporal monitoring
-                (depends on Stage 1 semantics; refined after Stage 3)
+  `-- Stage 5: loan-history early warning
+                (depends on Stage 1 semantics; refined after Stage 4)
 ```
 
 ### Stage 1: Executable notebook and trustworthy SEC loan-state boundary
@@ -1590,20 +1604,111 @@ PR #28. The ontology boundary and scoped terminal name were corrected in
 - **Refine after:** Stage 3 evidence. Do not preselect `RelationalConv`, PNA, or
   another API now.
 
-### Stage 5: Fixed-segment temporal monitoring
+### Stage 5: Loan-history early warning
 
-- **Outcome:** Determine whether existing sparse recurrence improves monthly
-  delinquency/prepayment monitoring over seasonal, persistence, GBM, and
-  node-local controls, then identify whether masks or per-lane edge values are
-  genuinely missing.
-- **Depends on:** Stage 1 semantics and a stable segment universe; refine after
-  Stage 3 to reuse accepted features and avoid parallel policy definitions.
-- **Invariants:** **INV-3** through **INV-9**.
-- **Invalidating assumption:** Monthly aggregation may erase the information
-  needed for graph structure, or existing static topology may already suffice.
-- **Proof:** Matched out-of-time topology controls and an explicit static-edge/
-  dynamic-edge or zero/missing counterexample before any API proposal.
-- **Refine after:** Stage 3 closes.
+**Status:** Implemented and evaluated; landing provenance follows merge.
+Re-grounded after Stage 4 against the twelve-report panel and PyTorch Geometric
+Temporal revision `ea40a6a396b6688a94d7482d9d5fd288eaa2cb3b`.
+
+- **Outcome:** Determine whether three consecutive monthly loan observations
+  improve prediction of first 60+ delinquency or charge-off in the next report
+  over the same shallow GBM using only the cutoff snapshot. State exactly why a
+  three-report lead-time or graph-recurrent claim is or is not identified.
+- **Depends on:** Stage 1 state/target semantics and the Stage 2 explainable GBM
+  protocol. The Stage 3 cohort-incidence ontology remains a negative result.
+- **Invariants:** **INV-3**, **INV-4**, **INV-6**, **INV-8**, **INV-9**, and
+  **INV-11** through **INV-16**.
+- **Invalidating assumption:** The twelve-report panel begins at the existing
+  three-report training cutoff, so it cannot support both three prior reports
+  and three non-overlapping future-report labels across train, validation, and
+  test. Loan entry and exit also violate the stable node-row assumption of
+  node-state recurrent graph layers unless a fixed universe and masks are
+  introduced.
+- **Proof:** **AC-4**, **AC-7**, **AC-8**, **AC-12**, and **AC-13**.
+
+#### Issue 5.1: Freeze the early-warning population and chronology
+
+**Status:** Complete.
+
+Use a three-report lookback including the cutoff and a one-report outcome.
+Require the cutoff loan to be nonterminal, not charged off, observed, and fewer
+than 30 days delinquent. Continue to treat other reported terminal states as
+competing events and missing follow-up as censoring. Train on March through July
+cutoffs with outcomes matured through August, validate at September with
+outcomes matured through October, and reveal November once with outcomes matured
+through December. This estimates next-report serious-delinquency risk among
+currently-performing loans, not legal default and not an event exactly three
+months ahead. **INV-3**, **INV-4**, **INV-16**
+
+#### Issue 5.2: Materialize private, causally aligned histories
+
+**Status:** Complete.
+
+Retain the existing 24 cutoff features. Add two prior-report values for the
+smallest changing state set: ending balance, current LTV, remaining term,
+scheduled payment, next payment due, and delinquency days. Derive adjacent
+changes from the same values. Reject incomplete three-report histories rather
+than imputing absent observations; retain ordinary within-report missing fields
+for train-owned imputation. Public summaries and figures remain aggregate, and
+the held-out test outcome is rematerialized only by the explicit reveal.
+**INV-4**, **INV-9**, **AC-12**
+
+#### Issue 5.3: Test temporal information before temporal architecture
+
+**Status:** Complete.
+
+Fit the ordinary snapshot GBM using the declared Stage 2 validation grid. Fit a
+history GBM with the same selected depth, learning rate, estimator count, and
+current-feature transform, adding only train-imputed lag/change columns. Report
+the complete **AC-4** metric surface, calibration, paired uncertainty, and a
+time-shuffled-history falsification. History value requires lower validation
+log loss and higher average precision than both snapshot and shuffled-history
+controls; otherwise close negatively without a recurrent model search. A pass
+is frozen before the one test reveal. **AC-7**, **AC-12**
+
+#### Issue 5.4: Decide the graph-recurrent boundary
+
+**Status:** Complete by negative closure.
+
+PyTorch Geometric Temporal's snapshot iterators are carriers, while `GConvGRU`
+and `TGCN` retain a hidden-state row per node. The public panel has changing loan
+membership, no declared active/missing-node mask, only twelve snapshots, and no
+supported borrower-to-borrower relation. `EvolveGCN-O` avoids per-loan hidden
+state by evolving graph weights, but does not answer the individual-history
+question isolated by Issue 5.3. Therefore this stage may not add a temporal
+graph arm or TinyMesh primitive. Reopen only with a longer panel plus either a
+stable fixed-segment target or a richer persistent entity/event ontology, then
+repeat the matched-information and false-topology controls. **INV-8**, **AC-13**
+
+**Observed:** Five March-through-July training cutoffs contain 167,101 resolved
+loan-cutoff outcomes and 385 events. September validation contains 30,231
+resolved outcomes and 92 events (`0.3043%`); November test contains 28,678
+resolved outcomes and 81 events (`0.2824%`). Only 23–34 reported loans per
+cutoff lack a complete three-report history. The remaining reductions are the
+declared currently-performing eligibility rule and observed competing events.
+
+The matched GBMs use the snapshot-selected depth `2`, learning rate `0.02`, and
+`240` estimators, a `960`-leaf budget. On validation the snapshot records AUROC
+`0.838703`, average precision `0.260214`, log loss `0.014829`, and Brier score
+`0.002558`. Aligned history
+records `0.890900`, `0.323902`, `0.013788`, and `0.002466`; the paired
+history-minus-snapshot effects are `-0.001041 ± 0.000331` log loss and
+`+0.063038 ± 0.019057` average precision. Shuffled history records log loss
+`0.014886` and average precision `0.263932`, effectively retaining the snapshot.
+Validation therefore selects `retain_history` before the test reveal.
+
+The frozen test confirms the decision. Snapshot versus aligned-history results
+are AUROC `0.892570` versus `0.915124`, average precision `0.317180` versus
+`0.335136`, and log loss `0.012302` versus `0.012083`. Brier score moves
+adversely from `0.002259` to `0.002328`, so the conclusion is positive for
+ranking and log loss but explicitly mixed for squared probability error.
+Shuffled-history test log loss is `0.012339` and average precision `0.318125`.
+
+The retained conclusion is narrow: three observed monthly states add useful
+information for next-report serious-delinquency-or-charge-off warning among
+currently-performing loans. The source does not identify legal default, an
+event exactly three reports ahead, or a graph-recurrent effect. No TinyMesh or
+PyTorch Geometric Temporal dependency or primitive is added.
 
 ## Coverage
 
@@ -1621,6 +1726,8 @@ PR #28. The ontology boundary and scoped terminal name were corrected in
 | AC-3–AC-5 | Stages 2–3 | Matched validation controls and frozen test evidence |
 | INV-7, INV-8 | Stage 4 | Sparse-work inspection and promotion gate |
 | AC-6, AC-7 | Stage 4 | Primitive evidence or retained negative decision |
+| INV-16, AC-12 | Stage 5 | Matched history controls and frozen test reveal |
+| AC-13 | Stage 5 | Exact PyG Temporal inspection and retained graph boundary |
 
 ## Open decisions
 

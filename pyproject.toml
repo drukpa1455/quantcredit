@@ -1,7 +1,7 @@
 [project]
 name = "quantcredit"
 version = "0.1.0"
-description = "Executable consumer-credit research from public records to graph models"
+description = "Executable consumer-credit research with classical, temporal, and graph controls"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
