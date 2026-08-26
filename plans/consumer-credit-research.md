@@ -4,6 +4,7 @@ Decision state: Complete — `no_value_from_current_ontology`
 Ontology-scope correction: implemented in `5d968a2`; landed in `a5cda4b` via
 PR #30
 Stage 5 state: Complete — `retain_history`; temporal graph not identified
+Stage 5 delivery: implemented in `ec4d652`; landed in `be9762a` via PR #32
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
 Inspected TinyMesh revision: `d8897db013041c56fce821aa30cd3e551debb8e6`
@@ -1606,8 +1607,8 @@ PR #28. The ontology boundary and scoped terminal name were corrected in
 
 ### Stage 5: Loan-history early warning
 
-**Status:** Implemented and evaluated in `ec4d652`; landing provenance follows
-merge.
+**Status:** Implemented and evaluated in `ec4d652`; landed in `be9762a` via PR
+#32.
 Re-grounded after Stage 4 against the twelve-report panel and PyTorch Geometric
 Temporal revision `ea40a6a396b6688a94d7482d9d5fd288eaa2cb3b`.
 
