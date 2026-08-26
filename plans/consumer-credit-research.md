@@ -1,6 +1,6 @@
 # Build a consumer-credit research workbench and test whether graphs earn new TinyMesh primitives
 
-Decision state: Decided
+Decision state: Complete — `reject_graph`
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
 Inspected TinyMesh revision: `d8897db013041c56fce821aa30cd3e551debb8e6`
@@ -1457,7 +1457,7 @@ graph topology.
 information without allowing a training target to encode itself or an
 evaluation loan to change another evaluation loan's input.
 
-**Status:** Complete; revision pending landing.
+**Status:** Implemented in `0e38c56`; landed in `1718395` via PR #28.
 
 **Decision:** Derive four categorical keys from past-only loan fields:
 `geography`, origination month inferred from cutoff and loan age,
@@ -1474,7 +1474,7 @@ No raw rows or key-to-loan assignments enter retained evidence. **INV-4**,
 **What and why:** Test relational alignment rather than merely giving a neural
 model additional columns.
 
-**Status:** Complete; revision pending landing.
+**Status:** Implemented in `0e38c56`; landed in `1718395` via PR #28.
 
 **Decision:** Pin TinyMesh revision
 `d8897db013041c56fce821aa30cd3e551debb8e6`. Lower each fold into context nodes,
@@ -1492,7 +1492,7 @@ slots. No TinyMesh change is authorized by this representation. **INV-5** throug
 **What and why:** Determine whether topology contributes beyond matched
 information and model capacity.
 
-**Status:** Complete; revision pending landing.
+**Status:** Implemented in `0e38c56`; landed in `1718395` via PR #28.
 
 **Decision:** Compare the existing raw GBM, the same selected shallow GBM fit on
 raw plus flattened cohort values, a parameter-comparable node-local MLP, true
@@ -1532,7 +1532,7 @@ frozen Stage 3 comparison after feature materialization and baseline fitting.
 **What and why:** Measure the already-frozen arms out of time without another
 architecture, feature, seed, or threshold choice.
 
-**Status:** Complete; revision pending landing.
+**Status:** Implemented in `0e38c56`; landed in `1718395` via PR #28.
 
 **Decision:** Materialize the held-out test outcome once, verify exact feature
 identity, apply the three-model neural ensembles and fixed classical models,
@@ -1568,8 +1568,8 @@ graduation gate to the retained result; do not search another architecture.
 
 ### Stage 4: Reject the graph claim or graduate one missing equation
 
-**Status:** Complete by negative closure. Stage 3 selected `reject_graph`; no
-TinyMesh change is authorized.
+**Status:** Complete by negative closure in `0e38c56`; landed in `1718395` via
+PR #28. Stage 3 selected `reject_graph`; no TinyMesh change is authorized.
 
 - **Outcome:** Retain a negative decision, or land exactly one reusable primitive
   whose missing contract caused a measured Stage 3 limitation.
