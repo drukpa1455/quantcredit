@@ -12,7 +12,61 @@ from pandas import DataFrame
 from sklearn.model_selection import StratifiedGroupKFold
 from tinymesh import Graph
 
+from quantcredit.populations import FEATURE_COLUMNS
+
 RELATIONS = ("geography", "vintage", "vehicle", "trust")
+CONTEXT_FEATURES = ("smoothed_event_rate", "log1p_sample_count")
+CONTEXT_KEYS = {
+  "geography": "geography",
+  "vintage": "inferred_origination_month",
+  "vehicle": "vehicle_type|vehicle_new_used",
+  "trust": "all_loans",
+}
+
+
+@dataclass(frozen=True)
+class Ontology:
+  """The exact node and edge schema tested by the graph challenger."""
+
+  @property
+  def nodes(self) -> DataFrame:
+    records: list[dict[str, Any]] = [
+      {
+        "node_type": "loan",
+        "identity": "loan_at_cutoff",
+        "features": FEATURE_COLUMNS,
+      }
+    ]
+    records.extend(
+      {
+        "node_type": f"{relation}_context",
+        "identity": key,
+        "features": CONTEXT_FEATURES,
+      }
+      for relation, key in CONTEXT_KEYS.items()
+    )
+    return DataFrame(records)
+
+  @property
+  def edges(self) -> DataFrame:
+    features = tuple(f"is_{relation}" for relation in RELATIONS)
+    return DataFrame(
+      [
+        {
+          "relation": relation,
+          "source": f"{relation}_context",
+          "target": "loan",
+          "direction": "context_to_loan",
+          "features": features,
+          "active_feature": f"is_{relation}",
+          "edges_per_loan": 1,
+        }
+        for relation in RELATIONS
+      ]
+    )
+
+
+ONTOLOGY = Ontology()
 
 
 @dataclass(frozen=True)

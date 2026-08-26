@@ -168,8 +168,12 @@ deal.plot()
 
 
 # %% 09 — Matched cohort controls
-# Does flattened past-only context improve the same loans and temporal folds?
+# What exact node and edge ontology are we testing?
 study = qc.challenge(baseline, examples)
+study.ontology.nodes
+study.ontology.edges
+
+# Does flattened past-only context improve the same loans and temporal folds?
 study.summary()
 study.topology
 study.deltas()

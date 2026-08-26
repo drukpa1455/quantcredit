@@ -46,8 +46,8 @@ class ChallengerTests(unittest.TestCase):
 
     self.assertEqual(_decision(pd.DataFrame(records)), "retain_existing_gine")
     records[-1]["valid"] = False
-    self.assertEqual(_decision(pd.DataFrame(records)), "reject_graph")
-    self.assertEqual(_decision(pd.DataFrame(records[:-4])), "reject_graph")
+    self.assertEqual(_decision(pd.DataFrame(records)), "no_value_from_current_ontology")
+    self.assertEqual(_decision(pd.DataFrame(records[:-4])), "no_value_from_current_ontology")
 
   def test_paired_comparison_reports_effect_and_uncertainty(self) -> None:
     target = np.asarray(([0, 0, 0, 1] * 25), dtype=np.int64)

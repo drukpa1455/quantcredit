@@ -81,11 +81,27 @@ frozen GBM with simple rules at matched excluded balance. It is not a return,
 price, or underwriting claim. The notebook then keeps a separate, fully
 declared collateral and tranche scenario to demonstrate cash-flow mechanics.
 
-The graph study gives enriched GBM, node-local, true GINE, erased-relation, and
-false-relation arms the same train-owned cohort facts, while raw GBM remains the
+The graph study tests one explicit cohort-incidence ontology:
+
+```text
+geography context --geography--> loan at cutoff
+vintage context   --vintage----> loan at cutoff
+vehicle context   --vehicle----> loan at cutoff
+global context    --trust------> loan at cutoff
+```
+
+Loan nodes carry the declared causal loan features. Each context node carries a
+past-only smoothed event rate and log sample count. Each directed edge carries
+only its one-hot relation type, with exactly one edge of each type per loan.
+`study.ontology.nodes` and `study.ontology.edges` expose this schema directly.
+
+The enriched GBM, node-local, true GINE, erased-relation, and false-relation
+arms receive the same train-owned cohort facts, while raw GBM remains the
 incumbent. On the pinned panel, true topology did not beat the GBMs or its
-topology controls, so the retained decision is `reject_graph`; no TinyMesh
-primitive was added.
+topology controls, so the retained decision is
+`no_value_from_current_ontology`. This is evidence about the tested ontology,
+not a rejection of graph methods or richer borrower, account, payment, asset,
+identity, or temporal relations. No TinyMesh primitive was added.
 
 The default baseline maps a declared 36-candidate validation surface. For a
 quick exploratory run, narrow the same operation explicitly—for example,
