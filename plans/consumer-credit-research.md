@@ -1606,7 +1606,8 @@ PR #28. The ontology boundary and scoped terminal name were corrected in
 
 ### Stage 5: Loan-history early warning
 
-**Status:** Implemented and evaluated; landing provenance follows merge.
+**Status:** Implemented and evaluated in `ec4d652`; landing provenance follows
+merge.
 Re-grounded after Stage 4 against the twelve-report panel and PyTorch Geometric
 Temporal revision `ea40a6a396b6688a94d7482d9d5fd288eaa2cb3b`.
 
