@@ -73,10 +73,15 @@ class VisualTests(unittest.TestCase):
       calibration,
       pd.DataFrame(),
       pd.DataFrame(),
-      "reject_graph",
+      "no_value_from_current_ontology",
       cast(Artifacts, None),
     )
-    evaluation = GraphEvaluation(results, calibration, "reject_graph", "reject_graph")
+    evaluation = GraphEvaluation(
+      results,
+      calibration,
+      "no_value_from_current_ontology",
+      "no_value_from_current_ontology",
+    )
 
     self.assertEqual(len(study.plot().axes), 2)
     self.assertIn("1 invalid constant control", study.plot().get_suptitle())

@@ -6,10 +6,26 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedGroupKFold
 
-from quantcredit.relations import RELATIONS, cohorts
+from quantcredit.populations import FEATURE_COLUMNS
+from quantcredit.relations import CONTEXT_FEATURES, ONTOLOGY, RELATIONS, cohorts
 
 
 class RelationTests(unittest.TestCase):
+  def test_ontology_exposes_the_exact_tested_node_and_edge_schema(self) -> None:
+    nodes = ONTOLOGY.nodes.set_index("node_type")
+    edges = ONTOLOGY.edges.set_index("relation")
+
+    self.assertEqual(nodes.loc["loan", "features"], FEATURE_COLUMNS)
+    self.assertEqual(nodes.loc["vintage_context", "identity"], "inferred_origination_month")
+    self.assertEqual(nodes.loc["trust_context", "features"], CONTEXT_FEATURES)
+    self.assertEqual(tuple(edges.index), RELATIONS)
+    self.assertTrue((edges["target"] == "loan").all())
+    self.assertTrue((edges["direction"] == "context_to_loan").all())
+    edge_features = tuple(f"is_{relation}" for relation in RELATIONS)
+    self.assertTrue(all(features == edge_features for features in edges["features"]))
+    self.assertEqual(tuple(edges["active_feature"]), edge_features)
+    self.assertTrue((edges["edges_per_loan"] == 1).all())
+
   def test_cross_fit_excludes_each_loan_and_unknowns_use_past_defaults(self) -> None:
     examples = self._examples()
     mapping, facts = cohorts(examples, folds=3, smoothing=20, seed=31)

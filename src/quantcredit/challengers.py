@@ -20,7 +20,7 @@ from tinymesh.nn import GINEConv
 from quantcredit.acquire import DEFAULT_CACHE
 from quantcredit.baselines import Baseline, calibrate, match_test, measure
 from quantcredit.populations import FEATURE_COLUMNS, materialize_test_examples
-from quantcredit.relations import CohortMap, Cohorts, GraphBatch, cohorts
+from quantcredit.relations import ONTOLOGY, CohortMap, Cohorts, GraphBatch, Ontology, cohorts
 
 if TYPE_CHECKING:
   from matplotlib.figure import Figure
@@ -39,8 +39,16 @@ class GraphStudy:
   calibration: DataFrame
   topology: DataFrame
   comparison: DataFrame
-  decision: Literal["reject_graph", "retain_existing_gine", "investigate_missing_equation"]
+  decision: Literal[
+    "no_value_from_current_ontology",
+    "retain_existing_gine",
+    "investigate_missing_equation",
+  ]
   _artifacts: Artifacts = field(repr=False)
+
+  @property
+  def ontology(self) -> Ontology:
+    return ONTOLOGY
 
   def summary(self) -> DataFrame:
     return self.results.loc[self.results["seed"].isna()].reset_index(drop=True)
@@ -346,7 +354,7 @@ def confirm(
   decision = (
     "retain_existing_gine"
     if study.decision == "retain_existing_gine" and test_passes
-    else "reject_graph"
+    else "no_value_from_current_ontology"
   )
   return GraphEvaluation(results, calibrations, study.decision, decision)
 
@@ -503,7 +511,11 @@ def _log_losses(
 
 def _decision(
   results: DataFrame,
-) -> Literal["reject_graph", "retain_existing_gine", "investigate_missing_equation"]:
+) -> Literal[
+  "no_value_from_current_ontology",
+  "retain_existing_gine",
+  "investigate_missing_equation",
+]:
   ensemble = results.loc[results["seed"].isna()].set_index("arm")
   true = results.loc[results["arm"] == "true_gine"]
   controls = results.loc[results["arm"].isin(("node_local", "erased_gine", "false_gine"))]
@@ -521,7 +533,7 @@ def _decision(
     and per_seed
     and _ensemble_passes(ensemble.reset_index())
   )
-  return "retain_existing_gine" if passes else "reject_graph"
+  return "retain_existing_gine" if passes else "no_value_from_current_ontology"
 
 
 def _validate_protocol(

@@ -1,6 +1,6 @@
 # Build a consumer-credit research workbench and test whether graphs earn new TinyMesh primitives
 
-Decision state: Complete — `reject_graph`
+Decision state: Complete — `no_value_from_current_ontology`
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
 Inspected TinyMesh revision: `d8897db013041c56fce821aa30cd3e551debb8e6`
@@ -401,7 +401,7 @@ enriched GBM        Graph + node/edge tensors
        +--------+------------------+
        |                           |
        v                           v
-reject graph claim       name missing equation
+close current ontology   name missing equation
                                  |
                                  v
                        runtime graduation proof
@@ -679,7 +679,7 @@ Epic: executable consumer-credit research from public records to graph decision
   +-- Stage 3: matched enriched-GBM/GINE experiment
   |             (depends on Stage 2 baseline)
   |
-  +-- Stage 4: reject graph claim or graduate one missing equation
+  +-- Stage 4: close current ontology or graduate one missing equation
   |             (depends on Stage 3 evidence)
   |
   `-- Stage 5: fixed-segment temporal monitoring
@@ -1527,7 +1527,7 @@ invalid control because true GINE also loses materially to both GBMs and does
 not separate from valid topology falsifications. Runtime was `430.2s` for the
 frozen Stage 3 comparison after feature materialization and baseline fitting.
 
-#### Issue 3.4: Open one frozen test and decide the graph claim
+#### Issue 3.4: Open one frozen test and decide the current ontology claim
 
 **What and why:** Measure the already-frozen arms out of time without another
 architecture, feature, seed, or threshold choice.
@@ -1554,22 +1554,25 @@ Brier `0.008535`); enriched GBM records `0.041903`, `0.345005`, and `0.008539`.
 True GINE records `0.052925`, `0.160889`, and `0.009998`, while erased and false
 GINE are slightly better on log loss and average precision. The node-local arm
 again emits constant scores and remains invalid. The frozen test therefore
-confirms `reject_graph`. No missing equation is identified, so **AC-6** does not
-authorize a TinyMesh implementation or framework benchmark.
+confirms `no_value_from_current_ontology`. This closes only the tested
+four-relation cohort-incidence ontology; it does not reject graph methods or a
+richer entity/event ontology. No missing equation is identified, so **AC-6**
+does not authorize a TinyMesh implementation or framework benchmark.
 
 **Stage 3 closes when:** Issues 3.1 through 3.4 run from the canonical notebook,
 synthetic leakage/topology/training contracts and full repository checks pass,
 the pinned-panel aggregate result is recorded, and exactly one of these states
-is explicit: `reject_graph`, `retain_existing_gine`, or
+is explicit: `no_value_from_current_ontology`, `retain_existing_gine`, or
 `investigate_missing_equation`.
 
 **Next issue after Stage 3:** Apply the Stage 4 negative-closure or primitive
 graduation gate to the retained result; do not search another architecture.
 
-### Stage 4: Reject the graph claim or graduate one missing equation
+### Stage 4: Close the current ontology or graduate one missing equation
 
 **Status:** Complete by negative closure in `0e38c56`; landed in `1718395` via
-PR #28. Stage 3 selected `reject_graph`; no TinyMesh change is authorized.
+PR #28. Stage 3 selected `no_value_from_current_ontology`; no TinyMesh change is
+authorized.
 
 - **Outcome:** Retain a negative decision, or land exactly one reusable primitive
   whose missing contract caused a measured Stage 3 limitation.
