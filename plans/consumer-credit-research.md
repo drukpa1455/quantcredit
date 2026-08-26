@@ -3,7 +3,7 @@
 Decision state: Decided
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
-Inspected TinyMesh revision: `dad041a41cf7df7b379dc0e1a9769d6805a12042`
+Inspected TinyMesh revision: `d8897db013041c56fce821aa30cd3e551debb8e6`
 Sources: SEC asset-level disclosure; Zed REPL contract; pinned PyG Temporal
 reference; Caylent `tufte-data-viz` revision
 `ae7ca0de7819db83241b24a2618810d5f1171145`
@@ -314,9 +314,12 @@ does not prove, and what would reopen the decision.
   three declared seeds, followed by one frozen test evaluation. Statistical
   uncertainty and practical effect size are reported.
 - **AC-6 — Runtime gate:** No new public primitive lands unless the experiment
-  identifies a stable missing equation and the proposed owner passes host or
-  dense parity, first-order gradient, leading-shape, CPU and Metal, and sparse
-  storage/work checks.
+  identifies a stable missing equation. Before implementation, compare that
+  equation with fresh tinygrad, PyTorch Geometric, and PyTorch Geometric
+  Temporal references; record why each reference applies or does not. Benchmark
+  the reference and proposed owner on the declared credit-graph shapes. The
+  proposed owner must also pass host or dense parity, first-order gradient,
+  leading-shape, CPU and Metal, and sparse storage/work checks.
 - **AC-7 — Negative closure:** If the enriched GBM or a simpler existing model
   wins, the exact negative result is retained and no compensating architecture
   search or API is added within this epic.
@@ -620,6 +623,20 @@ The first possible temporal promotion questions are deliberately separate:
   restrained ink, direct labels, honest scales, and redundant encodings;
   preserve Sapphire dark mode and monospace where they remain legible. The
   local standard in `docs/research/data-visualization.md` owns adaptations.
+- **D-16:** Represent each historical cohort by the same smoothed event rate and
+  log sample count in every challenger. Training rows receive five-fold
+  stratified-group out-of-fold values; validation and test rows receive values
+  fit on all training rows. This prevents target leakage while retaining a
+  directly auditable relational fact.
+- **D-17:** Use one incoming edge per declared relation from frozen context to a
+  scored loan. Geography, inferred origination vintage, vehicle type/new-used
+  cohort, and trust are the only Stage 3 relations. Context never aggregates
+  evaluation-loan features, and scored loans never send messages.
+- **D-18:** Freeze neural width `16`, `60` full-batch Adam steps, learning rate
+  `0.01`, cohort smoothing `20`, cross-fit seed `31`, model seeds `(7, 19, 43)`,
+  and false-relation seed `97` before validation evidence. Log loss is primary;
+  average precision and Brier score are co-gates, and observed event exposure
+  avoided at `10%` excluded balance is the declared ranking statistic.
 
 ### Failure and operational behavior
 
@@ -1430,10 +1447,129 @@ graph topology.
 - **Invalidating assumption:** Existing GINE may be equivalent to or worse than
   the enriched GBM once information and evaluation are matched.
 - **Proof:** **AC-3** through **AC-5**, with one frozen final test query.
-- **Refine after:** Stage 2 fixes the incumbent, remaining error structure, and
-  whether historical cohort facts are available without leakage.
+- **Refined from:** Stage 2 fixes the incumbent and shows material validation
+  concentration by score, while cohort residuals remain too small and sparse to
+  justify unguarded target aggregation.
+
+#### Issue 3.1: Cross-fit matched historical cohort facts
+
+**What and why:** Give the tabular and graph challengers identical relational
+information without allowing a training target to encode itself or an
+evaluation loan to change another evaluation loan's input.
+
+**Status:** Complete; revision pending landing.
+
+**Decision:** Derive four categorical keys from past-only loan fields:
+`geography`, origination month inferred from cutoff and loan age,
+`vehicle_type × vehicle_new_used`, and the constant trust identity. For each
+key, expose smoothed event rate and log sample count. Training values use
+five-fold `StratifiedGroupKFold` by loan identity; validation and test use maps
+fit on all resolved training rows. Unseen values receive the training-global
+rate and zero count. The smoothing weight is `20` and the split seed is `31`.
+No raw rows or key-to-loan assignments enter retained evidence. **INV-4**,
+**INV-5**, **INV-6**, **INV-9**
+
+#### Issue 3.2: Lower the matched typed quiver and falsification controls
+
+**What and why:** Test relational alignment rather than merely giving a neural
+model additional columns.
+
+**Status:** Complete; revision pending landing.
+
+**Decision:** Pin TinyMesh revision
+`d8897db013041c56fce821aa30cd3e551debb8e6`. Lower each fold into context nodes,
+loan nodes, four one-way context-to-loan edges per loan, two context values per
+node, and one-hot relation edge features. Existing `Graph` and `GINEConv` own
+sparse execution. The node-local control receives the flattened eight cohort
+values. Relation erasure zeros edge identity while preserving sources and
+targets. False relations permute source contexts within each relation using seed
+`97`, preserving every context out-degree and every loan's four incoming relation
+slots. No TinyMesh change is authorized by this representation. **INV-5** through
+**INV-8**, **AC-3**
+
+#### Issue 3.3: Run the frozen validation comparison
+
+**What and why:** Determine whether topology contributes beyond matched
+information and model capacity.
+
+**Status:** Complete; revision pending landing.
+
+**Decision:** Compare the existing raw GBM, the same selected shallow GBM fit on
+raw plus flattened cohort values, a parameter-comparable node-local MLP, true
+GINE, relation-erased GINE, and false-relation GINE. Neural arms use hidden width
+`16`, `60` full-batch Adam steps, learning rate `0.01`, and seeds `(7, 19, 43)`.
+Report parameter count, sample/event counts, AUROC, average precision, log loss,
+Brier score, score-band calibration, and event exposure avoided at `10%`
+excluded balance. Report paired log-loss standard errors and 200 deterministic
+paired bootstrap AP replicates with seed `113`; these quantify the frozen
+comparison and never select an arm. Structural value requires true GINE to beat
+enriched GBM and every neural control on validation log loss and average
+precision in all three seeds, with ensemble Brier score no worse than enriched
+GBM. **AC-3** through
+**AC-5**
+
+**Observed:** The pinned panel contains 35,374 resolved training rows and 32,203
+resolved validation rows, with 328 validation events. Raw GBM remains the
+incumbent (log loss `0.038646`, average precision `0.371020`, Brier `0.007723`).
+Matched cohort facts do not improve it: enriched GBM records `0.038834`,
+`0.364709`, and `0.007765`. The three-seed true GINE ensemble records
+`0.050917`, `0.133128`, and `0.009463`; erased and false-relation ensembles are
+effectively tied with it. Per-seed true-minus-erased log-loss deltas are
+`0.000049`, `0.000500`, and `0.000471`, with mixed average-precision signs.
+Against enriched GBM, paired validation effects are `+0.012083 ± 0.001612`
+log loss and `-0.231581 ± 0.026964` average precision (standard error; AP from
+the declared bootstrap). Raw GBM is directionally better than enriched GBM by
+`-0.000188 ± 0.000118` log loss and `+0.006311 ± 0.003535` average precision.
+The node-local arm fits training but emits constant validation scores under all
+three seeds, so it is retained as `invalid_constant_scores`, not repaired after
+validation. Validation therefore rejects structural value independently of the
+invalid control because true GINE also loses materially to both GBMs and does
+not separate from valid topology falsifications. Runtime was `430.2s` for the
+frozen Stage 3 comparison after feature materialization and baseline fitting.
+
+#### Issue 3.4: Open one frozen test and decide the graph claim
+
+**What and why:** Measure the already-frozen arms out of time without another
+architecture, feature, seed, or threshold choice.
+
+**Status:** Complete; revision pending landing.
+
+**Decision:** Materialize the held-out test outcome once, verify exact feature
+identity, apply the three-model neural ensembles and fixed classical models,
+and retain aggregate evidence only. A failed validation gate closes the graph
+claim regardless of test movement. A passed validation gate requires the same
+direction on test before Stage 4 may investigate one missing equation. Existing
+GINE failure alone does not prove TinyMesh lacks a primitive. **AC-5**,
+**AC-7**
+
+If the terminal state is `investigate_missing_equation`, freeze the measured
+shape and equation before touching TinyMesh. Inspect fresh tinygrad, PyTorch
+Geometric, and PyTorch Geometric Temporal source and documentation, mark any
+non-applicable reference explicitly, and reproduce an exact-shape benchmark.
+Only evidence from that comparison may authorize a TinyMesh change. **AC-6**
+
+**Observed:** The unchanged arms score 29,086 resolved test outcomes with 319
+events. Raw GBM remains best (log loss `0.041803`, average precision `0.345485`,
+Brier `0.008535`); enriched GBM records `0.041903`, `0.345005`, and `0.008539`.
+True GINE records `0.052925`, `0.160889`, and `0.009998`, while erased and false
+GINE are slightly better on log loss and average precision. The node-local arm
+again emits constant scores and remains invalid. The frozen test therefore
+confirms `reject_graph`. No missing equation is identified, so **AC-6** does not
+authorize a TinyMesh implementation or framework benchmark.
+
+**Stage 3 closes when:** Issues 3.1 through 3.4 run from the canonical notebook,
+synthetic leakage/topology/training contracts and full repository checks pass,
+the pinned-panel aggregate result is recorded, and exactly one of these states
+is explicit: `reject_graph`, `retain_existing_gine`, or
+`investigate_missing_equation`.
+
+**Next issue after Stage 3:** Apply the Stage 4 negative-closure or primitive
+graduation gate to the retained result; do not search another architecture.
 
 ### Stage 4: Reject the graph claim or graduate one missing equation
+
+**Status:** Complete by negative closure. Stage 3 selected `reject_graph`; no
+TinyMesh change is authorized.
 
 - **Outcome:** Retain a negative decision, or land exactly one reusable primitive
   whose missing contract caused a measured Stage 3 limitation.

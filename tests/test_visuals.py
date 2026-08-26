@@ -15,6 +15,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from quantcredit.audits import Audit
 from quantcredit.baselines import Baseline, Evaluation, Exposure, Metrics
 from quantcredit.cashflows import Tranche, project_collateral, run_waterfall
+from quantcredit.challengers import Artifacts, GraphEvaluation, GraphStudy
 from quantcredit.decisions import Decision
 from quantcredit.populations import FEATURE_COLUMNS
 from quantcredit.splits import causal_split
@@ -41,6 +42,45 @@ class VisualTests(unittest.TestCase):
       self.assertEqual(mpl.rcParams["figure.facecolor"], "#212c2a")
 
     self.assertEqual(mpl.rcParams["figure.facecolor"], before)
+
+  def test_graph_figures_exclude_invalid_validation_controls(self) -> None:
+    results = pd.DataFrame(
+      [
+        {
+          "arm": arm,
+          "seed": None,
+          "valid": valid,
+          "log_loss": loss,
+          "average_precision": precision,
+        }
+        for arm, valid, loss, precision in (
+          ("raw_gbm", True, 0.04, 0.35),
+          ("enriched_gbm", True, 0.041, 0.34),
+          ("true_gine", True, 0.05, 0.16),
+          ("node_local", False, 0.40, 0.01),
+        )
+      ]
+    )
+    calibration = pd.DataFrame(
+      {
+        "arm": results["arm"],
+        "mean_score": [0.01] * len(results),
+        "event_rate": [0.012] * len(results),
+      }
+    )
+    study = GraphStudy(
+      results,
+      calibration,
+      pd.DataFrame(),
+      pd.DataFrame(),
+      "reject_graph",
+      cast(Artifacts, None),
+    )
+    evaluation = GraphEvaluation(results, calibration, "reject_graph", "reject_graph")
+
+    self.assertEqual(len(study.plot().axes), 2)
+    self.assertIn("1 invalid constant control", study.plot().get_suptitle())
+    self.assertEqual(len(evaluation.plot().axes), 2)
 
   def test_decision_figure_exposes_effects_residuals_and_frontier(self) -> None:
     effects = pd.DataFrame(

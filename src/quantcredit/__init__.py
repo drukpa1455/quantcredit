@@ -2,6 +2,8 @@
 
 from quantcredit.api import (
   audit,
+  challenge,
+  confirm,
   decide,
   evaluate,
   examples,
@@ -16,6 +18,8 @@ from quantcredit.cashflows import Tranche
 __all__ = [
   "Tranche",
   "audit",
+  "challenge",
+  "confirm",
   "decide",
   "evaluate",
   "examples",

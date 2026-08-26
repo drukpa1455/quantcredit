@@ -11,6 +11,8 @@ dependencies = [
     "pandas>=3.0.5,<4",
     "scikit-learn>=1.9,<2",
     "seaborn>=0.13.2,<0.14",
+    "tinygrad @ git+https://github.com/tinygrad/tinygrad.git@33755a34657d25920914badbe32a9d70489669c7",
+    "tinymesh @ git+https://github.com/spatioterra-ai/tinymesh.git@d8897db013041c56fce821aa30cd3e551debb8e6",
 ]
 
 [build-system]

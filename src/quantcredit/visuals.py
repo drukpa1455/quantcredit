@@ -27,6 +27,7 @@ from quantcredit.splits import CausalSplit
 if TYPE_CHECKING:
   from quantcredit.baselines import Baseline, Evaluation, Exposure
   from quantcredit.cashflows import Deal
+  from quantcredit.challengers import GraphEvaluation, GraphStudy
   from quantcredit.decisions import Decision
 
 # Ported from Reia Sapphire at revision 0ad104c; quantcredit owns this small snapshot.
@@ -158,6 +159,59 @@ def sapphire() -> Iterator[None]:
   """Apply the repository's scoped Matplotlib theme."""
   with mpl.rc_context(cast(Any, _STYLE)):
     yield
+
+
+def plot_graph_study(study: GraphStudy) -> Figure:
+  """Compare ensemble discrimination and calibration for matched challengers."""
+  all_results = study.summary()
+  summary = all_results.loc[all_results["valid"]].sort_values("log_loss")
+  valid_arms = set(summary["arm"])
+  calibration = study.calibration.loc[study.calibration["arm"].isin(valid_arms)]
+  labels = summary["arm"].str.replace("_", " ")
+  with sapphire():
+    figure, axes = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
+    axes[0].barh(labels, summary["log_loss"], color=_COLORS["cyan"], alpha=0.82)
+    axes[0].invert_yaxis()
+    axes[0].set(title="Validation log loss · lower is better", xlabel="Log loss")
+    for arm, group in calibration.groupby("arm", observed=True):
+      axes[1].plot(group["mean_score"], group["event_rate"], marker="o", label=arm)
+    axes[1].plot((0, 1), (0, 1), linestyle="--", color=_COLORS["muted"], alpha=0.6)
+    axes[1].set(
+      title="Ensemble score-band calibration",
+      xlabel="Mean predicted probability",
+      ylabel="Observed event rate",
+    )
+    axes[1].legend(fontsize=7)
+    invalid = int((~all_results["valid"]).sum())
+    suffix = "" if invalid == 0 else f" · {invalid} invalid constant control"
+    figure.suptitle(
+      f"Matched graph decision: {study.decision.replace('_', ' ')}{suffix}"
+    )
+  return figure
+
+
+def plot_graph_evaluation(evaluation: GraphEvaluation) -> Figure:
+  """Compare frozen test loss and discrimination without implying reselection."""
+  results = evaluation.results.sort_values("log_loss")
+  labels = results["arm"].str.replace("_", " ")
+  with sapphire():
+    figure, axes = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
+    axes[0].barh(labels, results["log_loss"], color=_COLORS["cyan"], alpha=0.82)
+    axes[0].invert_yaxis()
+    axes[0].set(title="Frozen test log loss", xlabel="Log loss")
+    axes[1].barh(
+      labels,
+      results["average_precision"],
+      color=_COLORS["accent"],
+      alpha=0.82,
+    )
+    axes[1].invert_yaxis()
+    axes[1].set(title="Frozen test average precision", xlabel="Average precision")
+    figure.suptitle(
+      f"Validation {evaluation.validation_decision.replace('_', ' ')} → "
+      f"{evaluation.decision.replace('_', ' ')}"
+    )
+  return figure
 
 
 def plot_audit(audit: Audit) -> Figure:
