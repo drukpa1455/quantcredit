@@ -1,6 +1,8 @@
 # Build a consumer-credit research workbench and test whether graphs earn new TinyMesh primitives
 
 Decision state: Complete — `no_value_from_current_ontology`
+Ontology-scope correction: implemented in `5d968a2`; landed in `a5cda4b` via
+PR #30
 Repositories: `drukpa1455/quantcredit` research repository;
 `spatioterra-ai/tinymesh` reusable runtime
 Inspected TinyMesh revision: `d8897db013041c56fce821aa30cd3e551debb8e6`
@@ -1571,8 +1573,9 @@ graduation gate to the retained result; do not search another architecture.
 ### Stage 4: Close the current ontology or graduate one missing equation
 
 **Status:** Complete by negative closure in `0e38c56`; landed in `1718395` via
-PR #28. Stage 3 selected `no_value_from_current_ontology`; no TinyMesh change is
-authorized.
+PR #28. The ontology boundary and scoped terminal name were corrected in
+`5d968a2`, landed in `a5cda4b` via PR #30. Stage 3 selected
+`no_value_from_current_ontology`; no TinyMesh change is authorized.
 
 - **Outcome:** Retain a negative decision, or land exactly one reusable primitive
   whose missing contract caused a measured Stage 3 limitation.
