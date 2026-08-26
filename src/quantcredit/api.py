@@ -12,6 +12,7 @@ if TYPE_CHECKING:
   from quantcredit.audits import Audit
   from quantcredit.baselines import Baseline, Evaluation
   from quantcredit.cashflows import Deal, Tranche
+  from quantcredit.challengers import GraphEvaluation, GraphStudy
   from quantcredit.decisions import Decision, Pool
   from quantcredit.source import SourceManifest
   from quantcredit.splits import CausalSplit
@@ -84,6 +85,43 @@ def evaluate(
   if cache is None:
     return evaluate_baseline(baseline, examples, manifest, split)
   return evaluate_baseline(baseline, examples, manifest, split, cache)
+
+
+def challenge(
+  baseline: Baseline,
+  examples: DataFrame,
+  *,
+  seeds: tuple[int, ...] = (7, 19, 43),
+  hidden: int = 16,
+  steps: int = 60,
+  learning_rate: float = 0.01,
+) -> GraphStudy:
+  """Run matched tabular, node-local, and graph validation controls."""
+  from quantcredit.challengers import challenge as run
+
+  return run(
+    baseline,
+    examples,
+    seeds=seeds,
+    hidden=hidden,
+    steps=steps,
+    learning_rate=learning_rate,
+  )
+
+
+def confirm(
+  study: GraphStudy,
+  examples: DataFrame,
+  manifest: SourceManifest,
+  split: CausalSplit,
+  cache: Path | None = None,
+) -> GraphEvaluation:
+  """Open one exact held-out test for every frozen challenger."""
+  from quantcredit.challengers import confirm as run
+
+  if cache is None:
+    return run(study, examples, manifest, split)
+  return run(study, examples, manifest, split, cache)
 
 
 def decide(

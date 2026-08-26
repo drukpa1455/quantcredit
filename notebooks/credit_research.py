@@ -169,11 +169,26 @@ deal.plot()
 
 # %% 09 — Matched cohort controls
 # Does flattened past-only context improve the same loans and temporal folds?
+study = qc.challenge(baseline, examples)
+study.summary()
+study.topology
+study.deltas()
+study.comparison
 
 
 # %% 10 — Graph challenger and falsification
 # Does true topology beat enriched tabular, erased, false, and node-local controls?
+study.calibration
+study.plot()
+
+
+# %% 10a — One frozen out-of-time reveal
+# Do the already-frozen validation arms move in the same direction on test?
+graph_test = qc.confirm(study, examples, manifest, split)
+graph_test.summary()
+graph_test.plot()
 
 
 # %% 11 — Conclusion and reopening conditions
 # What does the evidence prove, reject, and require before another experiment?
+{"validation": study.decision, "test": graph_test.decision}

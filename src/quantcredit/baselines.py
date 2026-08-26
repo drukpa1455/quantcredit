@@ -264,7 +264,7 @@ def fit_baseline(
     classifier.fit(transformed_train, train_y)
     candidate_scores = classifier.predict_proba(transformed_validation)[:, 1]
     scores.append(candidate_scores)
-    metrics.append(_metrics(validation_y, candidate_scores))
+    metrics.append(measure(validation_y, candidate_scores))
 
   candidates, selected_index = _compare(validation_y, parameters, scores, metrics)
   selected = parameters[selected_index]
@@ -279,8 +279,8 @@ def fit_baseline(
     classifier=classifier,
     candidates=candidates,
     reference_probability=reference_probability,
-    reference=_metrics(validation_y, reference_scores),
-    calibration=_calibration(validation_y, selected_scores),
+    reference=measure(validation_y, reference_scores),
+    calibration=calibrate(validation_y, selected_scores),
     importance=_importance(
       preprocessor,
       classifier,
@@ -301,7 +301,7 @@ def evaluate_baseline(
   """Apply one frozen baseline to a matched, explicitly derived test fold."""
   baseline._validate_selection()
   revealed = materialize_test_examples(manifest, split, cache)
-  test = _binary_fold(_match_held_out_test(examples, revealed), "test")
+  test = _binary_fold(match_test(examples, revealed), "test")
   test_x, test_y = _xy(test)
   transformed_test = baseline.preprocessor.transform(test_x)
   scores = baseline.classifier.predict_proba(transformed_test)[:, 1]
@@ -310,14 +310,15 @@ def evaluate_baseline(
     baseline=baseline,
     cutoff=split.test_cutoff,
     labels_observed_through=split.test_labels_observed_through,
-    metrics=_metrics(test_y, scores),
-    reference=_metrics(test_y, reference_scores),
-    calibration=_calibration(test_y, scores),
+    metrics=measure(test_y, scores),
+    reference=measure(test_y, reference_scores),
+    calibration=calibrate(test_y, scores),
     exposure=_exposure(test_y, scores, test["ending_balance"]),
   )
 
 
-def _match_held_out_test(examples: DataFrame, revealed: DataFrame) -> DataFrame:
+def match_test(examples: DataFrame, revealed: DataFrame) -> DataFrame:
+  """Verify that revealed outcomes belong to the exact held-out feature rows."""
   required = {"loan_id", "cutoff", "fold", "target_status", "target", *FEATURE_COLUMNS}
   missing = sorted(required - set(examples.columns))
   if missing:
@@ -476,7 +477,7 @@ def _losses(target: NDArray[np.int64], scores: NDArray[np.float64]) -> NDArray[n
   return np.asarray(losses, dtype=np.float64)
 
 
-def _metrics(target: NDArray[np.int64], scores: NDArray[np.float64]) -> Metrics:
+def measure(target: NDArray[np.int64], scores: NDArray[np.float64]) -> Metrics:
   events = int(target.sum())
   return Metrics(
     samples=len(target),
@@ -501,7 +502,7 @@ def _metric_record(metrics: Metrics) -> dict[str, int | float]:
   }
 
 
-def _calibration(
+def calibrate(
   target: NDArray[np.int64],
   scores: NDArray[np.float64],
   *,

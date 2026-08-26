@@ -10,7 +10,7 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-from quantcredit.baselines import _compare, _exposure, _metrics, evaluate_baseline, fit_baseline
+from quantcredit.baselines import _compare, _exposure, evaluate_baseline, fit_baseline, measure
 from quantcredit.populations import CATEGORICAL_FEATURES, FEATURE_COLUMNS, NUMERIC_FEATURES
 
 
@@ -27,7 +27,7 @@ class BaselineTests(unittest.TestCase):
       target,
       ((1, 0.05, 10), (3, 0.05, 20)),
       [simple, empirical_best],
-      [_metrics(target, simple), _metrics(target, empirical_best)],
+      [measure(target, simple), measure(target, empirical_best)],
     )
 
     self.assertGreater(candidates.iloc[0]["log_loss_delta"], 0)
