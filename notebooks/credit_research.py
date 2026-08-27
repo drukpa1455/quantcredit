@@ -212,6 +212,7 @@ history.plot()
 forecast = qc.forecast(history)
 forecast.summary()
 forecast.comparison
+forecast.drivers
 forecast.calibration
 forecast.plot()
 
