@@ -259,36 +259,55 @@ def plot_forecast(study: Forecast) -> Figure:
   """Compare aligned history with snapshot and shuffled-history controls."""
   results = study.results.sort_values("log_loss")
   labels = results["arm"].str.replace("_", " ")
+  drivers = study.drivers.sort_values("log_loss_increase")
+  driver_labels = drivers["feature"].str.replace("_", " ").str.title()
+  leading_driver = str(study.drivers.iloc[0]["feature"]).replace("_", " ")
   with sapphire():
-    figure, axes = plt.subplots(1, 3, figsize=(15, 4.5), constrained_layout=True)
-    axes[0].barh(labels, results["log_loss"], color=_COLORS["cyan"], alpha=0.82)
-    axes[0].invert_yaxis()
-    axes[0].set(title="Validation log loss", xlabel="Lower is better")
-    axes[1].barh(
+    figure, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
+    flat = axes.flat
+    flat[0].barh(labels, results["log_loss"], color=_COLORS["cyan"], alpha=0.82)
+    flat[0].invert_yaxis()
+    flat[0].set(title="Validation log loss", xlabel="Lower is better")
+    flat[1].barh(
       labels,
       results["average_precision"],
       color=_COLORS["accent"],
       alpha=0.82,
     )
-    axes[1].invert_yaxis()
-    axes[1].set(title="Validation average precision", xlabel="Higher is better")
+    flat[1].invert_yaxis()
+    flat[1].set(title="Validation average precision", xlabel="Higher is better")
     for arm, group in study.calibration.groupby("arm", observed=True):
-      axes[2].plot(group["mean_score"], group["event_rate"], marker="o", label=arm)
+      flat[2].plot(group["mean_score"], group["event_rate"], marker="o", label=arm)
     limit = 1.1 * max(
       float(study.calibration["mean_score"].max()),
       float(study.calibration["event_rate"].max()),
     )
-    axes[2].plot(
+    flat[2].plot(
       (0, limit),
       (0, limit),
       linestyle="--",
       color=_COLORS["muted"],
       alpha=0.6,
     )
-    axes[2].set(xlim=(0, limit), ylim=(0, limit))
-    axes[2].set(title="Score-band calibration", xlabel="Mean score", ylabel="Event rate")
-    axes[2].legend(fontsize=7)
-    figure.suptitle(f"Temporal information: {study.decision.replace('_', ' ')}")
+    flat[2].set(xlim=(0, limit), ylim=(0, limit))
+    flat[2].set(title="Score-band calibration", xlabel="Mean score", ylabel="Event rate")
+    flat[2].legend(fontsize=7)
+    flat[3].barh(
+      driver_labels,
+      drivers["log_loss_increase"],
+      xerr=drivers["log_loss_increase_se"],
+      color=_COLORS["orange"],
+      alpha=0.82,
+    )
+    flat[3].axvline(0, color=_COLORS["muted"], linewidth=0.8)
+    flat[3].set(
+      title="History reliance · grouped permutation",
+      xlabel="Validation log-loss increase",
+    )
+    figure.suptitle(
+      f"Temporal information: {study.decision.replace('_', ' ')} · "
+      f"largest reliance on {leading_driver}"
+    )
   return figure
 
 

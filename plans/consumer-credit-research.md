@@ -1712,6 +1712,32 @@ currently-performing loans. The source does not identify legal default, an
 event exactly three reports ahead, or a graph-recurrent effect. No TinyMesh or
 PyTorch Geometric Temporal dependency or primitive is added.
 
+#### Issue 5.5: Explain which trajectories carry validation lift
+
+**Status:** Implemented and evaluated; implementation revision pending.
+
+Hold the selected history GBM fixed and jointly permute each feature's four lag
+and change columns within the validation cutoff. Report the mean increase in log
+loss and decrease in average precision over five deterministic repeats, with
+Monte Carlo standard errors. This is a model-reliance diagnostic: correlated
+trajectories can substitute for one another, and permutation effects are not
+causal or standalone feature value. It may explain the frozen validation result
+but may not refit, select a new model, inspect test outcomes, or alter the Stage
+5 decision. The aggregate table and fourth forecast panel are the canonical
+textual and visual evidence.
+
+**Observed:** Breaking next-payment-due history increased validation log loss by
+`0.000901 ± 0.000021`; breaking delinquency-days history increased it by
+`0.000576 ± 0.000045`. Current-LTV and remaining-term histories produced smaller
+increases of `0.000359 ± 0.000020` and `0.000171 ± 0.000021`. Scheduled-payment
+history had no measured effect, while ending-balance permutation slightly
+improved log loss by `0.000024 ± 0.000004`. Average precision did not rank every
+correlated family the same: removing current-LTV or ending-balance history
+slightly improved it. The defensible conclusion is model reliance concentrated
+in next-payment-due and delinquency trajectories, not causal or unique feature
+importance. The frozen `retain_history` decision and held-out test evidence were
+not reopened.
+
 ## Coverage
 
 | Contract | Delivered by | Proven by |

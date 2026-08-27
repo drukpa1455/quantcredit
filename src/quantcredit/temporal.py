@@ -88,6 +88,7 @@ class Forecast:
   results: DataFrame
   calibration: DataFrame
   comparison: DataFrame
+  drivers: DataFrame
   decision: Literal["retain_snapshot", "retain_history"]
   _artifacts: ForecastArtifacts = field(repr=False)
 
@@ -245,6 +246,15 @@ def forecast(
     results,
     calibration,
     _comparisons(validation_y, scores),
+    _drivers(
+      aligned_model,
+      imputer,
+      validation_current,
+      validation[list(HISTORY_COLUMNS)],
+      validation["cutoff"],
+      validation_y,
+      scores["history_gbm"],
+    ),
     decision,
     ForecastArtifacts(snapshot, imputer, aligned_model, shuffled_model, shuffle_seed),
   )
@@ -576,6 +586,66 @@ def _comparisons(
       }
     )
   return DataFrame(records)
+
+
+def _drivers(
+  model: HistGradientBoostingClassifier,
+  imputer: SimpleImputer,
+  current: NDArray[np.float64],
+  history: DataFrame,
+  cutoffs: pd.Series[Any],
+  target: NDArray[np.int64],
+  reference: NDArray[np.float64],
+  *,
+  repeats: int = 5,
+  seed: int = 131,
+) -> DataFrame:
+  """Measure validation reliance by jointly permuting each trajectory family."""
+  if repeats < 1:
+    raise ValueError("driver permutation requires at least one repeat")
+  reference_metrics = measure(target, reference)
+  rng = np.random.default_rng(seed)
+  records = []
+  for feature in TEMPORAL_FEATURES:
+    columns = tuple(column for column in HISTORY_COLUMNS if column.startswith(f"{feature}_"))
+    loss_increases = []
+    precision_decreases = []
+    for _ in range(repeats):
+      permuted = _permute_columns(history, columns, cutoffs, rng)
+      values = np.asarray(imputer.transform(permuted))
+      scores = model.predict_proba(np.concatenate((current, values), axis=1))[:, 1]
+      metrics = measure(target, scores)
+      loss_increases.append(metrics.log_loss - reference_metrics.log_loss)
+      precision_decreases.append(reference_metrics.average_precision - metrics.average_precision)
+    records.append(
+      {
+        "feature": feature,
+        "columns": len(columns),
+        "repeats": repeats,
+        "log_loss_increase": float(np.mean(loss_increases)),
+        "log_loss_increase_se": _standard_error(loss_increases),
+        "average_precision_decrease": float(np.mean(precision_decreases)),
+        "average_precision_decrease_se": _standard_error(precision_decreases),
+      }
+    )
+  return DataFrame(records).sort_values("log_loss_increase", ascending=False, ignore_index=True)
+
+
+def _permute_columns(
+  frame: DataFrame,
+  columns: tuple[str, ...],
+  groups: pd.Series[Any],
+  rng: np.random.Generator,
+) -> DataFrame:
+  result = frame.copy()
+  for positions in groups.groupby(groups, sort=False).groups.values():
+    index = np.asarray(list(positions), dtype=np.int64)
+    result.loc[index, list(columns)] = frame.loc[rng.permutation(index), list(columns)].to_numpy()
+  return result
+
+
+def _standard_error(values: list[float]) -> float:
+  return 0.0 if len(values) == 1 else float(np.std(values, ddof=1) / sqrt(len(values)))
 
 
 def _losses(

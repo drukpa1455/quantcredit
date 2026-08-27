@@ -22,6 +22,7 @@ from quantcredit.temporal import (
   _assemble,
   _history_fields,
   _match_test,
+  _permute_columns,
   _shuffle,
   forecast,
   reveal,
@@ -113,6 +114,7 @@ class TemporalTests(unittest.TestCase):
     )
 
     pd.testing.assert_frame_equal(study.results, repeated.results)
+    pd.testing.assert_frame_equal(study.drivers, repeated.drivers)
     self.assertEqual(
       set(study.results["arm"]),
       {"snapshot_gbm", "history_gbm", "shuffled_history_gbm"},
@@ -122,7 +124,28 @@ class TemporalTests(unittest.TestCase):
       float(study.results.set_index("arm").loc["history_gbm", "log_loss"]),
       float(study.results.set_index("arm").loc["snapshot_gbm", "log_loss"]),
     )
-    self.assertEqual(len(study.plot().axes), 3)
+    self.assertEqual(tuple(study.drivers["feature"]), TEMPORAL_FEATURES)
+    self.assertGreater(float(study.drivers.iloc[0]["log_loss_increase"]), 0)
+    self.assertEqual(len(study.plot().axes), 4)
+
+  def test_group_permutation_preserves_joint_values_within_cutoff(self) -> None:
+    frame = pd.DataFrame(
+      {
+        "a": [1, 2, 3, 4, 5, 6],
+        "b": [11, 12, 13, 14, 15, 16],
+        "untouched": [21, 22, 23, 24, 25, 26],
+      }
+    )
+    groups = pd.Series(["x", "x", "x", "y", "y", "y"])
+
+    permuted = _permute_columns(frame, ("a", "b"), groups, np.random.default_rng(7))
+
+    pd.testing.assert_series_equal(permuted["untouched"], frame["untouched"])
+    for positions in ((0, 1, 2), (3, 4, 5)):
+      self.assertEqual(
+        sorted(map(tuple, permuted.loc[list(positions), ["a", "b"]].to_numpy())),
+        sorted(map(tuple, frame.loc[list(positions), ["a", "b"]].to_numpy())),
+      )
 
   def test_reveal_matches_exact_history_before_opening_test(self) -> None:
     history = self._history()

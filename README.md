@@ -78,6 +78,7 @@ history.plot()
 forecast = qc.forecast(history)
 forecast.summary()
 forecast.comparison
+forecast.drivers
 forecast.plot()
 
 forecast_test = qc.reveal(forecast, history, manifest, early_split)
@@ -123,6 +124,11 @@ the loan first reach 60+ delinquency or charge-off in the next report? The
 snapshot and history arms use the same selected shallow-GBM capacity. A
 shuffled-history arm preserves every cutoff's history distribution while
 breaking loan alignment.
+
+`forecast.drivers` keeps the selected history model fixed and jointly permutes
+each feature's lag/change family on validation. It measures model reliance, not
+causal importance or standalone feature value; correlated trajectories may
+substitute for one another.
 
 On validation, aligned history improved log loss from `0.014829` to `0.013788`
 and average precision from `0.260214` to `0.323902`; shuffled history did not
