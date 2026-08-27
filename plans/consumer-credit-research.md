@@ -1714,7 +1714,8 @@ PyTorch Geometric Temporal dependency or primitive is added.
 
 #### Issue 5.5: Explain which trajectories carry validation lift
 
-**Status:** Implemented and evaluated; implementation revision pending.
+**Status:** Implemented and evaluated in `09b89fe`; landed in `e51a63d` via PR
+#34.
 
 Hold the selected history GBM fixed and jointly permute each feature's four lag
 and change columns within the validation cutoff. Report the mean increase in log
